@@ -1,17 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Dumbbell, Calendar, Lock } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
-function formatDate(d) {
-  if (!d) return 'Never';
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 function shortDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function relativeDate(d) {
+  if (!d) return '—';
+  const days = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
+function formatJoinDate(d) {
+  return new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+
+const METRIC_LABELS = {
+  max_weight: 'Max Weight',
+  total_volume: 'Total Volume',
+  max_reps: 'Max Reps',
+  sets_completed: 'Sets',
+  avg_weight: 'Avg Weight',
+};
+
+const METRIC_UNITS = {
+  max_weight: 'kg',
+  total_volume: 'kg·reps',
+  max_reps: 'reps',
+  sets_completed: 'sets',
+  avg_weight: 'kg',
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border-accent)',
+      borderRadius: 10, padding: '10px 14px',
+    }}>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 6, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        {label}
+      </div>
+      {payload.map(p => (
+        <div key={p.dataKey} style={{ color: p.color, fontWeight: 800, fontFamily: 'var(--font-display)', fontSize: 16 }}>
+          {p.value != null ? p.value : '—'}
+          {METRIC_UNITS[p.dataKey] ? ` ${METRIC_UNITS[p.dataKey]}` : ''}
+          <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: 'var(--text-secondary)' }}>
+            {METRIC_LABELS[p.dataKey] || p.dataKey}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+function StatBox({ value, label, color }) {
+  return (
+    <div className="stat-box">
+      <div className="stat-box-value" style={color ? { color } : {}}>{value}</div>
+      <div className="stat-box-label">{label}</div>
+    </div>
+  );
 }
 
 export default function UserProfile() {
@@ -73,7 +131,7 @@ export default function UserProfile() {
         <button className="back-btn" onClick={() => navigate(-1)}><ArrowLeft size={15} /> Back</button>
       </div>
 
-      {/* Profile hero */}
+      {/* Hero */}
       <div className="user-profile-hero">
         <div className="user-profile-avatar">
           {profile.avatar_data
@@ -82,35 +140,31 @@ export default function UserProfile() {
           }
         </div>
         <div className="user-profile-name">{profile.username}</div>
-        <div className="user-profile-since">Member since {formatDate(profile.created_at)}</div>
+        <div className="user-profile-since">Member since {formatJoinDate(profile.created_at)}</div>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats — consistent 2×2 grid */}
       <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-box">
-          <div className="stat-box-value" style={{ color: 'var(--accent)' }}>{profile.total_points?.toLocaleString() || 0}</div>
-          <div className="stat-box-label">Total Points</div>
-        </div>
-        <div className="stat-box">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 24 }}>🥇</span>
-            <div className="stat-box-value">{profile.gold_medals || 0}</div>
-          </div>
-          <div className="stat-box-label">Gold Medals</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-box-value">{profile.total_workouts || 0}</div>
-          <div className="stat-box-label">Workouts</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-box-value" style={{ fontSize: 16 }}>
-            {profile.last_workout ? formatDate(profile.last_workout) : '—'}
-          </div>
-          <div className="stat-box-label">Last Workout</div>
-        </div>
+        <StatBox
+          value={profile.total_points?.toLocaleString() ?? 0}
+          label="Total Points"
+          color="var(--accent)"
+        />
+        <StatBox
+          value={profile.gold_medals ? `🥇 ${profile.gold_medals}` : '—'}
+          label="Gold Medals"
+        />
+        <StatBox
+          value={profile.total_workouts ?? 0}
+          label="Workouts"
+        />
+        <StatBox
+          value={relativeDate(profile.last_workout)}
+          label="Last Workout"
+        />
       </div>
 
-      {/* Exercise progress (public profiles only) */}
+      {/* Exercise progress */}
       {profile.exercises?.length > 0 && (
         <>
           <div className="section-heading">Exercise Progress</div>
@@ -126,7 +180,7 @@ export default function UserProfile() {
             </select>
           </div>
 
-          {progressData && (
+          {progressData && chartData.length > 0 && (
             <>
               {chartData.some(d => d.max_weight != null) && (
                 <div className="chart-container">
@@ -136,8 +190,9 @@ export default function UserProfile() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1c" />
                       <XAxis dataKey="date" tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-accent)', borderRadius: 8, fontSize: 13 }} />
-                      <Line type="monotone" dataKey="max_weight" stroke="#e63030" strokeWidth={2.5} dot={{ fill: '#e63030', r: 4, strokeWidth: 0 }} connectNulls />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line type="monotone" dataKey="max_weight" stroke="#e63030" strokeWidth={2.5}
+                        dot={{ fill: '#e63030', r: 4, strokeWidth: 0 }} connectNulls />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -149,20 +204,15 @@ export default function UserProfile() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1c" />
                     <XAxis dataKey="date" tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-accent)', borderRadius: 8, fontSize: 13 }} />
-                    <Line type="monotone" dataKey="max_reps" stroke="#00c896" strokeWidth={2.5} dot={{ fill: '#00c896', r: 4, strokeWidth: 0 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line type="monotone" dataKey="max_reps" stroke="#00c896" strokeWidth={2.5}
+                      dot={{ fill: '#00c896', r: 4, strokeWidth: 0 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </>
           )}
         </>
-      )}
-
-      {me?.username !== username && !profile.is_public && (
-        <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, marginTop: 20 }}>
-          Progress charts are hidden on private profiles
-        </div>
       )}
     </div>
   );

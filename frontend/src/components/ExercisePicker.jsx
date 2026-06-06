@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Check } from 'lucide-react';
 import api from '../api';
 
-export default function ExercisePicker({ templateType, addedNames, onAdd, onClose }) {
+export default function ExercisePicker({ templateType, addedNames, onAdd, onRemove, onClose }) {
   const [exercises, setExercises] = useState([]);
   const [search, setSearch] = useState('');
   const searchRef = useRef();
@@ -10,14 +10,13 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onClos
   useEffect(() => {
     const endpoint = templateType === 'cardio' ? '/exercises/cardio' : '/exercises/strength';
     api.get(endpoint).then(res => setExercises(res.data)).catch(() => {});
-    setTimeout(() => searchRef.current?.focus(), 100);
+    setTimeout(() => searchRef.current?.focus(), 150);
   }, [templateType]);
 
   const filtered = search.trim()
     ? exercises.filter(e => e.name.toLowerCase().includes(search.toLowerCase()))
     : exercises;
 
-  // Group exercises
   const groups = filtered.reduce((acc, ex) => {
     if (!acc[ex.group]) acc[ex.group] = [];
     acc[ex.group].push(ex);
@@ -26,10 +25,34 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onClos
 
   const addedSet = new Set(addedNames);
 
+  const handleTap = (name) => {
+    if (addedSet.has(name)) {
+      onRemove(name);
+    } else {
+      onAdd(name);
+    }
+  };
+
+  const renderItem = (ex) => {
+    const added = addedSet.has(ex.name);
+    return (
+      <button
+        key={ex.name}
+        className={`picker-item ${added ? 'added' : ''}`}
+        onClick={() => handleTap(ex.name)}
+      >
+        <span className="picker-item-name">{ex.name}</span>
+        {added
+          ? <span className="picker-item-remove"><X size={14} /></span>
+          : null
+        }
+      </button>
+    );
+  };
+
   return (
     <div className="picker-overlay" onClick={onClose}>
       <div className="picker-sheet" onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div className="picker-header">
           <span className="picker-title">
             {templateType === 'cardio' ? 'Cardio Exercises' : 'Strength Exercises'}
@@ -37,7 +60,6 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onClos
           <button className="picker-close" onClick={onClose}><X size={18} /></button>
         </div>
 
-        {/* Search */}
         <div className="picker-search-wrap">
           <Search size={15} className="picker-search-icon" />
           <input
@@ -52,41 +74,20 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onClos
           )}
         </div>
 
-        {/* List */}
+        {addedSet.size > 0 && (
+          <div className="picker-added-count">
+            {addedSet.size} exercise{addedSet.size !== 1 ? 's' : ''} selected — tap to remove
+          </div>
+        )}
+
         <div className="picker-list">
           {templateType === 'cardio' ? (
-            // Cardio: flat list
-            filtered.map(ex => {
-              const added = addedSet.has(ex.name);
-              return (
-                <button
-                  key={ex.name}
-                  className={`picker-item ${added ? 'added' : ''}`}
-                  onClick={() => !added && onAdd(ex.name)}
-                >
-                  <span className="picker-item-name">{ex.name}</span>
-                  {added && <Check size={15} color="var(--success)" />}
-                </button>
-              );
-            })
+            filtered.map(ex => renderItem(ex))
           ) : (
-            // Strength: grouped
             Object.entries(groups).map(([group, exList]) => (
               <div key={group}>
                 <div className="picker-group-label">{group}</div>
-                {exList.map(ex => {
-                  const added = addedSet.has(ex.name);
-                  return (
-                    <button
-                      key={ex.name}
-                      className={`picker-item ${added ? 'added' : ''}`}
-                      onClick={() => !added && onAdd(ex.name)}
-                    >
-                      <span className="picker-item-name">{ex.name}</span>
-                      {added && <Check size={15} color="var(--success)" />}
-                    </button>
-                  );
-                })}
+                {exList.map(ex => renderItem(ex))}
               </div>
             ))
           )}

@@ -101,6 +101,7 @@ async function migrate() {
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS planned_duration_minutes INTEGER;
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS actual_duration_minutes DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS template_type VARCHAR(20) DEFAULT 'strength';
+    ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS cardio_metrics JSONB;
   `);
 
   console.log('Database migrated successfully');

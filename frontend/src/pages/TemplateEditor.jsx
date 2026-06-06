@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, Dumbbell, Heart } from 'lucide-react';
 import api from '../api';
 import ExercisePicker from '../components/ExercisePicker';
@@ -16,9 +16,13 @@ const newExercise = (name, type) => ({
 export default function TemplateEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isEdit = !!id;
 
-  const [templateType, setTemplateType] = useState('strength'); // locked after first exercise added
+  // Pre-select type from navigation state (when coming from Templates page tab)
+  const [templateType, setTemplateType] = useState(
+    location.state?.templateType || 'strength'
+  );
   const [name, setName] = useState('');
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(isEdit);
@@ -47,8 +51,11 @@ export default function TemplateEditor() {
     setExercises(ex => [...ex, newExercise(exerciseName, templateType)]);
   };
 
-  const removeExercise = (key) =>
-    setExercises(ex => ex.filter(e => e._key !== key));
+  const handleRemoveFromPicker = (exerciseName) => {
+    setExercises(ex => ex.filter(e => e.name !== exerciseName));
+  };
+
+  const removeExercise = (key) => setExercises(ex => ex.filter(e => e._key !== key));
 
   const update = (key, field, value) =>
     setExercises(ex => ex.map(e => e._key === key ? { ...e, [field]: value } : e));
@@ -67,7 +74,9 @@ export default function TemplateEditor() {
           exercise_type: templateType === 'cardio' ? 'cardio' : 'strength',
           sets: templateType === 'cardio' ? 0 : Math.max(1, parseInt(e.sets) || 1),
           reps: templateType === 'cardio' ? 0 : Math.max(1, parseInt(e.reps) || 1),
-          planned_duration_minutes: templateType === 'cardio' ? Math.max(1, parseInt(e.planned_duration_minutes) || 30) : null,
+          planned_duration_minutes: templateType === 'cardio'
+            ? Math.max(1, parseInt(e.planned_duration_minutes) || 30)
+            : null,
         })),
       };
       if (isEdit) await api.put(`/templates/${id}`, payload);
@@ -100,7 +109,7 @@ export default function TemplateEditor() {
 
       {error && <div className="error-msg">{error}</div>}
 
-      {/* Template type selector — locked when editing */}
+      {/* Type selector — only on new templates */}
       {!isEdit && (
         <div className="form-group">
           <label className="form-label">Workout Type</label>
@@ -109,15 +118,13 @@ export default function TemplateEditor() {
               className={`type-selector-btn ${!isCardio ? 'active strength' : ''}`}
               onClick={() => { setTemplateType('strength'); setExercises([]); }}
             >
-              <Dumbbell size={18} />
-              Strength
+              <Dumbbell size={18} /> Strength
             </button>
             <button
               className={`type-selector-btn ${isCardio ? 'active cardio' : ''}`}
               onClick={() => { setTemplateType('cardio'); setExercises([]); }}
             >
-              <Heart size={18} />
-              Cardio
+              <Heart size={18} /> Cardio
             </button>
           </div>
         </div>
@@ -157,7 +164,10 @@ export default function TemplateEditor() {
       </div>
 
       {exercises.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--text-muted)', border: '1px dashed var(--border-accent)', borderRadius: 14 }}>
+        <div style={{
+          textAlign: 'center', padding: '32px 20px', color: 'var(--text-muted)',
+          border: '1px dashed var(--border-accent)', borderRadius: 14,
+        }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>{isCardio ? '🏃' : '🏋️'}</div>
           <div style={{ fontSize: 14, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: 1 }}>
             Tap Add Exercise to get started
@@ -168,9 +178,11 @@ export default function TemplateEditor() {
           <div key={ex._key} className={`exercise-item ${isCardio ? 'exercise-item-cardio' : ''}`}>
             <div className="exercise-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: isCardio ? 'var(--accent-secondary)' : 'var(--accent)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  #{idx + 1}
-                </span>
+                <span style={{
+                  color: isCardio ? 'var(--accent-secondary)' : 'var(--accent)',
+                  fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800,
+                  textTransform: 'uppercase', letterSpacing: 1,
+                }}>#{idx + 1}</span>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>{ex.name}</span>
               </div>
               <button
@@ -222,6 +234,7 @@ export default function TemplateEditor() {
           templateType={templateType}
           addedNames={exercises.map(e => e.name)}
           onAdd={handleAddFromPicker}
+          onRemove={handleRemoveFromPicker}
           onClose={() => setShowPicker(false)}
         />
       )}

@@ -10,15 +10,25 @@ function shortDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+const METRIC_LABELS = {
+  max_weight: 'Max Weight',
+  total_volume: 'Total Volume',
+  max_reps: 'Max Reps',
+  sets_completed: 'Sets',
+};
+const METRIC_UNITS = {
+  max_weight: 'kg',
+  total_volume: 'kg·reps',
+  max_reps: 'reps',
+  sets_completed: 'sets',
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'var(--bg-elevated)',
-      border: '1px solid var(--border-accent)',
-      borderRadius: 10,
-      padding: '10px 14px',
-      fontSize: 13,
+      background: 'var(--bg-elevated)', border: '1px solid var(--border-accent)',
+      borderRadius: 10, padding: '10px 14px',
     }}>
       <div style={{ color: 'var(--text-secondary)', marginBottom: 6, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 }}>
         {label}
@@ -26,10 +36,10 @@ const CustomTooltip = ({ active, payload, label }) => {
       {payload.map(p => (
         <div key={p.dataKey} style={{ color: p.color, fontWeight: 800, fontFamily: 'var(--font-display)', fontSize: 16 }}>
           {p.value != null ? p.value : '—'}
-          {p.dataKey === 'max_weight' && ' kg'}
-          {p.dataKey === 'total_volume' && ' vol'}
-          {p.dataKey === 'max_reps' && ' reps'}
-          {p.dataKey === 'sets_completed' && ' sets'}
+          {METRIC_UNITS[p.dataKey] ? ` ${METRIC_UNITS[p.dataKey]}` : ''}
+          <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: 'var(--text-secondary)' }}>
+            {METRIC_LABELS[p.dataKey] || p.dataKey}
+          </span>
         </div>
       ))}
     </div>

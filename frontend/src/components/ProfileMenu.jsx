@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Lock, LogOut, X, ChevronRight, User } from 'lucide-react';
+import { Lock, LogOut, ChevronRight, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
 export default function ProfileMenu({ onClose }) {
-  const { user, login, logout, refreshUser } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
 
   const [isPublic, setIsPublic] = useState(false);
-  const [view, setView] = useState('menu'); // menu | password
+  const [view, setView] = useState('menu');
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef();
 
-  // Always fetch fresh profile when menu opens so toggle reflects real DB value
   useEffect(() => {
     api.get('/users/me').then(res => {
       setIsPublic(!!res.data.is_public);
-      // Also refresh auth context
       const updated = {
         id: res.data.id,
         username: res.data.username,
@@ -28,15 +26,12 @@ export default function ProfileMenu({ onClose }) {
         is_public: res.data.is_public,
       };
       login(localStorage.getItem('token'), updated);
-    }).catch(() => {
-      setIsPublic(!!user?.is_public);
-    });
+    }).catch(() => setIsPublic(!!user?.is_public));
   }, []);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Compress to max 256px before upload
     const img = new Image();
     img.onload = async () => {
       const canvas = document.createElement('canvas');
@@ -48,8 +43,7 @@ export default function ProfileMenu({ onClose }) {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       try {
         const res = await api.post('/users/me/avatar', { avatar_data: dataUrl });
-        const updated = { ...user, avatar_data: res.data.avatar_data };
-        login(localStorage.getItem('token'), updated);
+        login(localStorage.getItem('token'), { ...user, avatar_data: res.data.avatar_data });
       } catch (err) {
         alert(err.response?.data?.error || 'Upload failed');
       }
@@ -63,9 +57,7 @@ export default function ProfileMenu({ onClose }) {
     try {
       await api.put('/users/me', { is_public: next });
       login(localStorage.getItem('token'), { ...user, is_public: next });
-    } catch {
-      setIsPublic(!next); // revert on error
-    }
+    } catch { setIsPublic(!next); }
   };
 
   const handlePasswordSave = async () => {
@@ -79,15 +71,10 @@ export default function ProfileMenu({ onClose }) {
       setTimeout(onClose, 1400);
     } catch (err) {
       setPwError(err.response?.data?.error || 'Failed to update password');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   const initials = user?.username?.slice(0, 2).toUpperCase() || '??';
 
@@ -98,13 +85,13 @@ export default function ProfileMenu({ onClose }) {
 
         {view === 'menu' && (
           <>
+            {/* Avatar + username — tap avatar to change photo, no camera badge */}
             <div className="profile-menu-header">
               <div className="profile-avatar-lg" onClick={() => fileRef.current?.click()}>
                 {user?.avatar_data
                   ? <img src={user.avatar_data} alt="avatar" className="avatar-img-lg" />
                   : <span className="avatar-initials-lg">{initials}</span>
                 }
-                <div className="avatar-edit-badge"><Camera size={12} /></div>
               </div>
               <div>
                 <div className="profile-menu-username">{user?.username}</div>

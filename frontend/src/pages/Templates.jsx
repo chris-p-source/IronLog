@@ -39,6 +39,9 @@ export default function Templates() {
     }
   };
 
+  // Pass the current tab type so TemplateEditor pre-selects it
+  const handleNew = () => navigate('/template/new', { state: { templateType: tab } });
+
   const filtered = templates.filter(t => (t.template_type || 'strength') === tab);
   const isCardio = tab === 'cardio';
 
@@ -50,18 +53,14 @@ export default function Templates() {
         <h1 className="page-title">My <span>Templates</span></h1>
         <button
           className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
-          onClick={() => navigate('/template/new')}
+          onClick={handleNew}
         >
           <Plus size={15} /> New
         </button>
       </div>
 
-      {/* Strength / Cardio tabs */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
-        <button
-          className={`tab-btn ${tab === 'strength' ? 'active' : ''}`}
-          onClick={() => setTab('strength')}
-        >
+        <button className={`tab-btn ${tab === 'strength' ? 'active' : ''}`} onClick={() => setTab('strength')}>
           <Dumbbell size={13} /> Strength
         </button>
         <button
@@ -75,15 +74,10 @@ export default function Templates() {
 
       {filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">
-            {isCardio ? <Heart size={52} /> : <Dumbbell size={52} />}
-          </div>
+          <div className="empty-state-icon">{isCardio ? <Heart size={52} /> : <Dumbbell size={52} />}</div>
           <h3>No {isCardio ? 'Cardio' : 'Strength'} Templates</h3>
           <p>Create your first {isCardio ? 'cardio' : 'strength'} template to get started</p>
-          <button
-            className={`btn ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
-            onClick={() => navigate('/template/new')}
-          >
+          <button className={`btn ${isCardio ? 'btn-cardio' : 'btn-primary'}`} onClick={handleNew}>
             <Plus size={16} /> Create Template
           </button>
         </div>
@@ -104,9 +98,7 @@ export default function Templates() {
                   {t.exercises.slice(0, 4).map((ex, i) => (
                     <span key={i} className={`tag ${isCardio ? 'tag-cardio' : ''}`}>{ex.name}</span>
                   ))}
-                  {t.exercises.length > 4 && (
-                    <span className="tag">+{t.exercises.length - 4}</span>
-                  )}
+                  {t.exercises.length > 4 && <span className="tag">+{t.exercises.length - 4}</span>}
                 </div>
               )}
               <div className="template-actions">
@@ -116,19 +108,12 @@ export default function Templates() {
                   onClick={e => handleStart(e, t.id)}
                   disabled={starting === t.id}
                 >
-                  <Play size={13} />
-                  {starting === t.id ? 'Starting...' : 'Start Workout'}
+                  <Play size={13} />{starting === t.id ? 'Starting...' : 'Start Workout'}
                 </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={e => { e.stopPropagation(); navigate(`/template/${t.id}/edit`); }}
-                >
+                <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); navigate(`/template/${t.id}/edit`); }}>
                   <Pencil size={14} />
                 </button>
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={e => handleDelete(e, t.id)}
-                >
+                <button className="btn btn-danger btn-sm" onClick={e => handleDelete(e, t.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>

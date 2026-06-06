@@ -1038,6 +1038,52 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .history-item-cardio { border-color: rgba(255,107,0,0.15); }
 .history-item-cardio:hover { border-color: rgba(255,107,0,0.3); }
 
+/* ── Cardio metrics row ── */
+.cardio-metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border);
+  background: rgba(255,107,0,0.03);
+}
+
+.cardio-metric-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 80px;
+}
+
+.cardio-metric-input {
+  width: 100% !important;
+  border-color: rgba(255,107,0,0.3) !important;
+  font-size: 16px !important;
+  text-align: center;
+}
+
+.cardio-metric-input:focus { border-color: var(--accent-secondary) !important; }
+
+/* ── Picker added count hint ── */
+.picker-added-count {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+  background: var(--success-dim);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.picker-item-remove {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
 /* ── Exercise Picker ── */
 .picker-overlay {
   position: fixed;

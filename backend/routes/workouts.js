@@ -77,7 +77,7 @@ router.post('/:sessionId/log-set', async (req, res) => {
 });
 
 router.post('/:sessionId/log-cardio', async (req, res) => {
-  const { session_exercise_id, duration_minutes } = req.body;
+  const { session_exercise_id, duration_minutes, cardio_metrics } = req.body;
   try {
     const sess = await db.query(
       `SELECT ws.id FROM workout_sessions ws
@@ -87,8 +87,8 @@ router.post('/:sessionId/log-cardio', async (req, res) => {
     );
     if (sess.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     await db.query(
-      'UPDATE session_exercises SET actual_duration_minutes = $1 WHERE id = $2',
-      [duration_minutes, session_exercise_id]
+      'UPDATE session_exercises SET actual_duration_minutes = $1, cardio_metrics = $2 WHERE id = $3',
+      [duration_minutes, cardio_metrics ? JSON.stringify(cardio_metrics) : null, session_exercise_id]
     );
     res.json({ success: true });
   } catch (err) {
