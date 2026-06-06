@@ -1,36 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Pencil, Trash2, Dumbbell } from 'lucide-react';
+import { Plus, Play, Pencil, Trash2, Dumbbell, Heart } from 'lucide-react';
 import api from '../api';
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('strength');
   const [starting, setStarting] = useState(null);
   const navigate = useNavigate();
 
-  const load = async () => {
-    try {
-      const res = await api.get('/templates');
-      setTemplates(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.get('/templates')
+      .then(res => { setTemplates(res.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
-    if (!confirm('Delete this template? This cannot be undone.')) return;
+    if (!confirm('Delete this template?')) return;
     try {
       await api.delete(`/templates/${id}`);
       setTemplates(t => t.filter(x => x.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleStart = async (e, id) => {
@@ -47,52 +39,79 @@ export default function Templates() {
     }
   };
 
+  const filtered = templates.filter(t => (t.template_type || 'strength') === tab);
+  const isCardio = tab === 'cardio';
+
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">My <span>Templates</span></h1>
-        <button className="btn btn-primary btn-sm" onClick={() => navigate('/template/new')}>
+        <button
+          className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
+          onClick={() => navigate('/template/new')}
+        >
           <Plus size={15} /> New
         </button>
       </div>
 
-      {templates.length === 0 ? (
+      {/* Strength / Cardio tabs */}
+      <div className="tab-bar" style={{ marginBottom: 20 }}>
+        <button
+          className={`tab-btn ${tab === 'strength' ? 'active' : ''}`}
+          onClick={() => setTab('strength')}
+        >
+          <Dumbbell size={13} /> Strength
+        </button>
+        <button
+          className={`tab-btn ${tab === 'cardio' ? 'active' : ''}`}
+          onClick={() => setTab('cardio')}
+          style={tab === 'cardio' ? { background: 'var(--accent-secondary)' } : {}}
+        >
+          <Heart size={13} /> Cardio
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon"><Dumbbell size={52} /></div>
-          <h3>No Templates Yet</h3>
-          <p>Create your first workout template and start tracking your gains</p>
-          <button className="btn btn-primary" onClick={() => navigate('/template/new')}>
+          <div className="empty-state-icon">
+            {isCardio ? <Heart size={52} /> : <Dumbbell size={52} />}
+          </div>
+          <h3>No {isCardio ? 'Cardio' : 'Strength'} Templates</h3>
+          <p>Create your first {isCardio ? 'cardio' : 'strength'} template to get started</p>
+          <button
+            className={`btn ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
+            onClick={() => navigate('/template/new')}
+          >
             <Plus size={16} /> Create Template
           </button>
         </div>
       ) : (
         <div className="template-list">
-          {templates.map(t => (
-            <div
-              key={t.id}
-              className="template-card"
-              onClick={() => navigate(`/template/${t.id}/edit`)}
-            >
+          {filtered.map(t => (
+            <div key={t.id} className={`template-card ${isCardio ? 'template-card-cardio' : ''}`}>
               <div className="template-name">{t.name}</div>
               <div className="template-meta">
-                {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''} &middot;{' '}
-                {t.exercises.reduce((a, e) => a + Number(e.sets), 0)} total sets
+                {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''}
+                {isCardio
+                  ? ` · ${t.exercises.reduce((a, e) => a + (e.planned_duration_minutes || 0), 0)} min planned`
+                  : ` · ${t.exercises.reduce((a, e) => a + (parseInt(e.sets) || 0), 0)} total sets`
+                }
               </div>
               {t.exercises.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                   {t.exercises.slice(0, 4).map((ex, i) => (
-                    <span key={i} className="tag">{ex.name}</span>
+                    <span key={i} className={`tag ${isCardio ? 'tag-cardio' : ''}`}>{ex.name}</span>
                   ))}
                   {t.exercises.length > 4 && (
-                    <span className="tag">+{t.exercises.length - 4} more</span>
+                    <span className="tag">+{t.exercises.length - 4}</span>
                   )}
                 </div>
               )}
               <div className="template-actions">
                 <button
-                  className="btn btn-primary btn-sm"
+                  className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
                   style={{ flex: 1 }}
                   onClick={e => handleStart(e, t.id)}
                   disabled={starting === t.id}
@@ -103,14 +122,12 @@ export default function Templates() {
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={e => { e.stopPropagation(); navigate(`/template/${t.id}/edit`); }}
-                  aria-label="Edit"
                 >
                   <Pencil size={14} />
                 </button>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={e => handleDelete(e, t.id)}
-                  aria-label="Delete"
                 >
                   <Trash2 size={14} />
                 </button>

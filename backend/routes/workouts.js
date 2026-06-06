@@ -19,8 +19,10 @@ router.post('/start', async (req, res) => {
     }
     const template = tmpl.rows[0];
     const session = await client.query(
-      'INSERT INTO workout_sessions (user_id, template_id, template_name, started_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
-      [req.user.id, template_id, template.name]
+      `INSERT INTO workout_sessions
+         (user_id, template_id, template_name, template_type, started_at)
+       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+      [req.user.id, template_id, template.name, template.template_type || 'strength']
     );
     const exercises = await client.query(
       'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
@@ -50,7 +52,6 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// Log a strength set
 router.post('/:sessionId/log-set', async (req, res) => {
   const { session_exercise_id, set_number, reps_completed, weight_kg } = req.body;
   try {
@@ -75,7 +76,6 @@ router.post('/:sessionId/log-set', async (req, res) => {
   }
 });
 
-// Log cardio duration
 router.post('/:sessionId/log-cardio', async (req, res) => {
   const { session_exercise_id, duration_minutes } = req.body;
   try {
@@ -107,9 +107,7 @@ router.post('/:sessionId/complete', async (req, res) => {
        RETURNING *`,
       [req.params.sessionId, req.user.id]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Session not found or already completed' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found or already completed' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -119,6 +117,8 @@ router.post('/:sessionId/complete', async (req, res) => {
 
 router.get('/history', async (req, res) => {
   try {
+    const { type } = req.query; // 'strength' | 'cardio' | undefined (all)
+    const typeFilter = type ? `AND ws.template_type = '${type === 'cardio' ? 'cardio' : 'strength'}'` : '';
     const result = await db.query(
       `SELECT ws.*,
          COUNT(DISTINCT se.id) as exercise_count,
@@ -126,7 +126,7 @@ router.get('/history', async (req, res) => {
        FROM workout_sessions ws
        LEFT JOIN session_exercises se ON se.session_id = ws.id
        LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
-       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL
+       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL ${typeFilter}
        GROUP BY ws.id
        ORDER BY ws.completed_at DESC`,
       [req.user.id]

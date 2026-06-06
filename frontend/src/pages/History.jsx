@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight, Dumbbell, Heart } from 'lucide-react';
 import api from '../api';
 
 function formatDuration(seconds) {
@@ -18,29 +18,25 @@ function formatDate(d) {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-
   if (date.toDateString() === today.toDateString()) return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function History() {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('strength');
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/workouts/history')
+    setLoading(true);
+    api.get(`/workouts/history?type=${tab}`)
       .then(res => { setWorkouts(res.data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [tab]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  const isCardio = tab === 'cardio';
 
   return (
     <div className="page">
@@ -48,17 +44,37 @@ export default function History() {
         <h1 className="page-title">Work<span>out</span> Log</h1>
       </div>
 
-      {workouts.length === 0 ? (
+      <div className="tab-bar" style={{ marginBottom: 20 }}>
+        <button
+          className={`tab-btn ${tab === 'strength' ? 'active' : ''}`}
+          onClick={() => setTab('strength')}
+        >
+          <Dumbbell size={13} /> Strength
+        </button>
+        <button
+          className={`tab-btn ${tab === 'cardio' ? 'active' : ''}`}
+          onClick={() => setTab('cardio')}
+          style={tab === 'cardio' ? { background: 'var(--accent-secondary)' } : {}}
+        >
+          <Heart size={13} /> Cardio
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="loading">Loading...</div>
+      ) : workouts.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon"><Clock size={52} /></div>
-          <h3>No Workouts Yet</h3>
-          <p>Start a workout from a template to see your history here</p>
+          <div className="empty-state-icon">
+            {isCardio ? <Heart size={52} /> : <Clock size={52} />}
+          </div>
+          <h3>No {isCardio ? 'Cardio' : 'Strength'} History</h3>
+          <p>Complete a {isCardio ? 'cardio' : 'strength'} workout to see it here</p>
         </div>
       ) : (
         workouts.map(w => (
           <div
             key={w.id}
-            className="history-item"
+            className={`history-item ${isCardio ? 'history-item-cardio' : ''}`}
             onClick={() => navigate(`/history/${w.id}`)}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -70,17 +86,23 @@ export default function History() {
             </div>
             <div className="history-stats">
               <div>
-                <div className="history-stat-value">{formatDuration(w.duration_seconds)}</div>
+                <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
+                  {formatDuration(w.duration_seconds)}
+                </div>
                 <div className="history-stat-label">Duration</div>
               </div>
               <div>
-                <div className="history-stat-value">{w.exercise_count}</div>
+                <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
+                  {w.exercise_count}
+                </div>
                 <div className="history-stat-label">Exercises</div>
               </div>
-              <div>
-                <div className="history-stat-value">{w.total_sets_completed}</div>
-                <div className="history-stat-label">Sets Done</div>
-              </div>
+              {!isCardio && (
+                <div>
+                  <div className="history-stat-value">{w.total_sets_completed}</div>
+                  <div className="history-stat-label">Sets Done</div>
+                </div>
+              )}
             </div>
           </div>
         ))

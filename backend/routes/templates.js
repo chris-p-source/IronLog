@@ -43,11 +43,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-async function upsertExercises(client, templateId, exercises) {
+async function upsertExercises(client, templateId, exercises, templateType) {
   await client.query('DELETE FROM template_exercises WHERE template_id = $1', [templateId]);
   for (let i = 0; i < exercises.length; i++) {
     const ex = exercises[i];
-    const isCardio = ex.exercise_type === 'cardio';
+    const isCardio = templateType === 'cardio';
     await client.query(
       `INSERT INTO template_exercises
          (template_id, name, exercise_type, sets, reps, planned_duration_minutes, order_index)
@@ -56,9 +56,9 @@ async function upsertExercises(client, templateId, exercises) {
         templateId,
         ex.name,
         isCardio ? 'cardio' : 'strength',
-        isCardio ? 0 : (ex.sets || 3),
-        isCardio ? 0 : (ex.reps || 10),
-        isCardio ? (ex.planned_duration_minutes || 30) : null,
+        isCardio ? 0 : (parseInt(ex.sets) || 3),
+        isCardio ? 0 : (parseInt(ex.reps) || 10),
+        isCardio ? (parseInt(ex.planned_duration_minutes) || 30) : null,
         i,
       ]
     );
@@ -66,16 +66,17 @@ async function upsertExercises(client, templateId, exercises) {
 }
 
 router.post('/', async (req, res) => {
-  const { name, exercises } = req.body;
+  const { name, template_type, exercises } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
+  const type = template_type === 'cardio' ? 'cardio' : 'strength';
   const client = await db.connect();
   try {
     await client.query('BEGIN');
     const t = await client.query(
-      'INSERT INTO workout_templates (user_id, name) VALUES ($1, $2) RETURNING *',
-      [req.user.id, name]
+      'INSERT INTO workout_templates (user_id, name, template_type) VALUES ($1, $2, $3) RETURNING *',
+      [req.user.id, name, type]
     );
-    if (exercises?.length) await upsertExercises(client, t.rows[0].id, exercises);
+    if (exercises?.length) await upsertExercises(client, t.rows[0].id, exercises, type);
     await client.query('COMMIT');
     const exResult = await db.query(
       'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
@@ -97,20 +98,21 @@ router.put('/:id', async (req, res) => {
   try {
     await client.query('BEGIN');
     const check = await client.query(
-      'SELECT id FROM workout_templates WHERE id = $1 AND user_id = $2',
+      'SELECT * FROM workout_templates WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
     if (check.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Not found' });
     }
+    const templateType = check.rows[0].template_type || 'strength';
     if (name) {
       await client.query(
         'UPDATE workout_templates SET name = $1, updated_at = NOW() WHERE id = $2',
         [name, req.params.id]
       );
     }
-    if (exercises) await upsertExercises(client, req.params.id, exercises);
+    if (exercises) await upsertExercises(client, req.params.id, exercises, templateType);
     await client.query('COMMIT');
     const t = await db.query('SELECT * FROM workout_templates WHERE id = $1', [req.params.id]);
     const exResult = await db.query(
