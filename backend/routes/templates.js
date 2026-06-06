@@ -43,6 +43,28 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+async function upsertExercises(client, templateId, exercises) {
+  await client.query('DELETE FROM template_exercises WHERE template_id = $1', [templateId]);
+  for (let i = 0; i < exercises.length; i++) {
+    const ex = exercises[i];
+    const isCardio = ex.exercise_type === 'cardio';
+    await client.query(
+      `INSERT INTO template_exercises
+         (template_id, name, exercise_type, sets, reps, planned_duration_minutes, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        templateId,
+        ex.name,
+        isCardio ? 'cardio' : 'strength',
+        isCardio ? 0 : (ex.sets || 3),
+        isCardio ? 0 : (ex.reps || 10),
+        isCardio ? (ex.planned_duration_minutes || 30) : null,
+        i,
+      ]
+    );
+  }
+}
+
 router.post('/', async (req, res) => {
   const { name, exercises } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
@@ -53,22 +75,13 @@ router.post('/', async (req, res) => {
       'INSERT INTO workout_templates (user_id, name) VALUES ($1, $2) RETURNING *',
       [req.user.id, name]
     );
-    const template = t.rows[0];
-    if (exercises && exercises.length > 0) {
-      for (let i = 0; i < exercises.length; i++) {
-        const ex = exercises[i];
-        await client.query(
-          'INSERT INTO template_exercises (template_id, name, sets, reps, order_index) VALUES ($1, $2, $3, $4, $5)',
-          [template.id, ex.name, ex.sets || 3, ex.reps || 10, i]
-        );
-      }
-    }
+    if (exercises?.length) await upsertExercises(client, t.rows[0].id, exercises);
     await client.query('COMMIT');
     const exResult = await db.query(
       'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
-      [template.id]
+      [t.rows[0].id]
     );
-    res.json({ ...template, exercises: exResult.rows });
+    res.json({ ...t.rows[0], exercises: exResult.rows });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
@@ -97,16 +110,7 @@ router.put('/:id', async (req, res) => {
         [name, req.params.id]
       );
     }
-    if (exercises) {
-      await client.query('DELETE FROM template_exercises WHERE template_id = $1', [req.params.id]);
-      for (let i = 0; i < exercises.length; i++) {
-        const ex = exercises[i];
-        await client.query(
-          'INSERT INTO template_exercises (template_id, name, sets, reps, order_index) VALUES ($1, $2, $3, $4, $5)',
-          [req.params.id, ex.name, ex.sets || 3, ex.reps || 10, i]
-        );
-      }
-    }
+    if (exercises) await upsertExercises(client, req.params.id, exercises);
     await client.query('COMMIT');
     const t = await db.query('SELECT * FROM workout_templates WHERE id = $1', [req.params.id]);
     const exResult = await db.query(

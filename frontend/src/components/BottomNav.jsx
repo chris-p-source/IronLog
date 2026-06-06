@@ -1,18 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, Clock, TrendingUp, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Dumbbell, Clock, TrendingUp, Trophy } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
   const path = location.pathname;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <nav className="bottom-nav">
@@ -37,9 +30,12 @@ export default function BottomNav() {
         <TrendingUp />
         <span>Progress</span>
       </button>
-      <button className="nav-item" onClick={handleLogout}>
-        <LogOut />
-        <span>Logout</span>
+      <button
+        className={`nav-item ${path === '/leaderboard' ? 'active' : ''}`}
+        onClick={() => navigate('/leaderboard')}
+      >
+        <Trophy />
+        <span>Leaderboard</span>
       </button>
     </nav>
   );
