@@ -1212,6 +1212,17 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   color: white;
 }
 
+.tab-bar-sm .tab-btn {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.tab-bar-sm .tab-btn.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-accent);
+}
+
 .points-info-banner {
   display: flex;
   align-items: center;

@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ProfileMenu from './ProfileMenu';
 
 export default function TopBar() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // Fetch full profile on mount so avatar + is_public are always fresh
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   const initials = user?.username?.slice(0, 2).toUpperCase() || '??';
 

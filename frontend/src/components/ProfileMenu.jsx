@@ -1,33 +1,60 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Lock, LogOut, X, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Camera, Lock, LogOut, X, ChevronRight, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
 export default function ProfileMenu({ onClose }) {
-  const { user, login, logout } = useAuth();
+  const { user, login, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  const [isPublic, setIsPublic] = useState(false);
   const [view, setView] = useState('menu'); // menu | password
-  const [isPublic, setIsPublic] = useState(user?.is_public ?? false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef();
 
+  // Always fetch fresh profile when menu opens so toggle reflects real DB value
+  useEffect(() => {
+    api.get('/users/me').then(res => {
+      setIsPublic(!!res.data.is_public);
+      // Also refresh auth context
+      const updated = {
+        id: res.data.id,
+        username: res.data.username,
+        avatar_data: res.data.avatar_data,
+        is_public: res.data.is_public,
+      };
+      login(localStorage.getItem('token'), updated);
+    }).catch(() => {
+      setIsPublic(!!user?.is_public);
+    });
+  }, []);
+
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
+    // Compress to max 256px before upload
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.createElement('canvas');
+      const max = 256;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       try {
-        const res = await api.post('/users/me/avatar', { avatar_data: ev.target.result });
-        login(localStorage.getItem('token'), { ...user, avatar_data: res.data.avatar_data });
+        const res = await api.post('/users/me/avatar', { avatar_data: dataUrl });
+        const updated = { ...user, avatar_data: res.data.avatar_data };
+        login(localStorage.getItem('token'), updated);
       } catch (err) {
         alert(err.response?.data?.error || 'Upload failed');
       }
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
   };
 
   const handleTogglePublic = async () => {
@@ -36,7 +63,9 @@ export default function ProfileMenu({ onClose }) {
     try {
       await api.put('/users/me', { is_public: next });
       login(localStorage.getItem('token'), { ...user, is_public: next });
-    } catch { setIsPublic(!next); }
+    } catch {
+      setIsPublic(!next); // revert on error
+    }
   };
 
   const handlePasswordSave = async () => {
@@ -47,7 +76,7 @@ export default function ProfileMenu({ onClose }) {
     try {
       await api.put('/users/me/password', { current_password: pwForm.current, new_password: pwForm.next });
       setPwSuccess(true);
-      setTimeout(onClose, 1200);
+      setTimeout(onClose, 1400);
     } catch (err) {
       setPwError(err.response?.data?.error || 'Failed to update password');
     } finally {
@@ -69,7 +98,6 @@ export default function ProfileMenu({ onClose }) {
 
         {view === 'menu' && (
           <>
-            {/* Avatar + username */}
             <div className="profile-menu-header">
               <div className="profile-avatar-lg" onClick={() => fileRef.current?.click()}>
                 {user?.avatar_data
@@ -84,58 +112,54 @@ export default function ProfileMenu({ onClose }) {
                   Tap photo to change
                 </button>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleAvatarChange}
-              />
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
             </div>
 
             <div className="divider" />
 
-            {/* Public profile toggle */}
             <div className="profile-menu-row" onClick={handleTogglePublic}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="profile-menu-row-title">Public Profile</div>
-                <div className="profile-menu-row-sub">Let others view your stats &amp; progress</div>
+                <div className="profile-menu-row-sub">
+                  {isPublic ? 'Others can view your stats & progress' : 'Your profile is private'}
+                </div>
               </div>
               <div className={`toggle ${isPublic ? 'on' : ''}`} />
             </div>
 
-            {/* Change password */}
             <div className="profile-menu-row" onClick={() => setView('password')}>
               <div className="profile-menu-row-icon"><Lock size={18} /></div>
-              <div className="profile-menu-row-title">Change Password</div>
-              <ChevronRight size={16} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>Change Password</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 
-            {/* View my profile */}
             <div className="profile-menu-row" onClick={() => { navigate(`/user/${user?.username}`); onClose(); }}>
-              <div className="profile-menu-row-icon"><Eye size={18} /></div>
-              <div className="profile-menu-row-title">View My Profile</div>
-              <ChevronRight size={16} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
+              <div className="profile-menu-row-icon"><User size={18} /></div>
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>View My Profile</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 
             <div className="divider" />
 
-            {/* Logout */}
             <button className="profile-menu-row logout-row" onClick={handleLogout}>
               <div className="profile-menu-row-icon" style={{ color: 'var(--accent)' }}><LogOut size={18} /></div>
-              <div className="profile-menu-row-title" style={{ color: 'var(--accent)' }}>Logout</div>
+              <div className="profile-menu-row-title" style={{ color: 'var(--accent)', flex: 1 }}>Logout</div>
             </button>
           </>
         )}
 
         {view === 'password' && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <button className="back-btn" onClick={() => setView('menu')}>← Back</button>
-              <span className="modal-title" style={{ fontSize: 18 }}>Change Password</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <button className="back-btn" onClick={() => { setView('menu'); setPwError(''); setPwSuccess(false); setPwForm({ current: '', next: '', confirm: '' }); }}>
+                ← Back
+              </button>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, textTransform: 'uppercase' }}>
+                Change Password
+              </span>
             </div>
             {pwError && <div className="error-msg">{pwError}</div>}
-            {pwSuccess && <div style={{ background: 'var(--success-dim)', color: 'var(--success)', padding: '10px 14px', borderRadius: 9, marginBottom: 16, fontSize: 14, fontWeight: 600 }}>Password updated!</div>}
+            {pwSuccess && <div style={{ background: 'var(--success-dim)', color: 'var(--success)', padding: '10px 14px', borderRadius: 9, marginBottom: 16, fontSize: 14, fontWeight: 600 }}>Password updated! ✓</div>}
             <div className="form-group">
               <label className="form-label">Current Password</label>
               <input className="form-input" type="password" placeholder="••••••••" value={pwForm.current} onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))} />

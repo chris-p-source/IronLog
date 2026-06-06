@@ -4,101 +4,112 @@ const auth = require('../middleware/auth');
 
 router.use(auth);
 
-// Helper: get points per user for a given time window
-async function getPointsForPeriod(whereClause) {
+async function getGoldMedalsMap() {
+  try {
+    const result = await db.query(`
+      WITH weekly_pts AS (
+        SELECT ws.user_id,
+          DATE_TRUNC('week', ws.completed_at) AS wk,
+          COALESCE(SUM(ss.reps_completed), 0) AS str_pts
+        FROM workout_sessions ws
+        LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'strength'
+        LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
+        WHERE ws.completed_at IS NOT NULL
+          AND DATE_TRUNC('week', ws.completed_at) < DATE_TRUNC('week', NOW())
+        GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
+      ),
+      weekly_cardio AS (
+        SELECT ws.user_id,
+          DATE_TRUNC('week', ws.completed_at) AS wk,
+          COALESCE(SUM(se.actual_duration_minutes * 2), 0) AS crd_pts
+        FROM workout_sessions ws
+        LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'cardio'
+        WHERE ws.completed_at IS NOT NULL
+          AND DATE_TRUNC('week', ws.completed_at) < DATE_TRUNC('week', NOW())
+        GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
+      ),
+      combined AS (
+        SELECT COALESCE(s.user_id, c.user_id) AS user_id,
+               COALESCE(s.str_pts, 0) + COALESCE(c.crd_pts, 0) AS total_pts,
+               COALESCE(s.wk, c.wk) AS wk
+        FROM weekly_pts s
+        FULL OUTER JOIN weekly_cardio c ON c.user_id = s.user_id AND c.wk = s.wk
+      ),
+      ranked AS (
+        SELECT user_id, RANK() OVER (PARTITION BY wk ORDER BY total_pts DESC) AS rnk
+        FROM combined WHERE total_pts > 0
+      )
+      SELECT user_id, COUNT(*) AS medals FROM ranked WHERE rnk = 1 GROUP BY user_id
+    `);
+    const map = {};
+    result.rows.forEach(r => { map[parseInt(r.user_id)] = parseInt(r.medals); });
+    return map;
+  } catch { return {}; }
+}
+
+async function getStrengthPoints(whereClause) {
   const result = await db.query(`
-    WITH s_pts AS (
-      SELECT ws.user_id, COALESCE(SUM(ss.reps_completed), 0) as pts
+    WITH s AS (
+      SELECT ws.user_id, COALESCE(SUM(ss.reps_completed), 0) AS pts
       FROM workout_sessions ws
       JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'strength'
       JOIN session_sets ss ON ss.session_exercise_id = se.id
       WHERE ws.completed_at IS NOT NULL ${whereClause}
       GROUP BY ws.user_id
-    ),
-    c_pts AS (
-      SELECT ws.user_id, COALESCE(SUM(se.actual_duration_minutes * 2), 0) as pts
-      FROM workout_sessions ws
-      JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'cardio'
-      WHERE ws.completed_at IS NOT NULL AND se.actual_duration_minutes IS NOT NULL ${whereClause}
-      GROUP BY ws.user_id
-    ),
-    combined AS (
-      SELECT COALESCE(s.user_id, c.user_id) as user_id,
-        COALESCE(s.pts, 0) + COALESCE(c.pts, 0) as total_points
-      FROM s_pts s FULL OUTER JOIN c_pts c ON c.user_id = s.user_id
     )
-    SELECT u.id, u.username, u.avatar_data,
-      ROUND(combined.total_points) as total_points
-    FROM combined
-    JOIN users u ON u.id = combined.user_id
-    WHERE combined.total_points > 0
-    ORDER BY total_points DESC
-    LIMIT 50
+    SELECT u.id, u.username, u.avatar_data, ROUND(s.pts) AS total_points
+    FROM s JOIN users u ON u.id = s.user_id
+    WHERE s.pts > 0
+    ORDER BY total_points DESC LIMIT 50
   `);
   return result.rows;
 }
 
-async function getCardioForPeriod(whereClause) {
+async function getCardioMinutes(whereClause) {
   const result = await db.query(`
     SELECT u.id, u.username, u.avatar_data,
-      ROUND(SUM(se.actual_duration_minutes)) as total_minutes,
-      ROUND(SUM(se.actual_duration_minutes) * 2) as total_points
+      ROUND(SUM(se.actual_duration_minutes)) AS total_minutes
     FROM workout_sessions ws
     JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'cardio'
     JOIN users u ON u.id = ws.user_id
     WHERE ws.completed_at IS NOT NULL AND se.actual_duration_minutes IS NOT NULL ${whereClause}
     GROUP BY u.id, u.username, u.avatar_data
-    ORDER BY total_minutes DESC
-    LIMIT 50
+    HAVING SUM(se.actual_duration_minutes) > 0
+    ORDER BY total_minutes DESC LIMIT 50
   `);
   return result.rows;
 }
 
-// Weekly leaderboard (current ISO week, Mon–now)
-router.get('/weekly', async (req, res) => {
+const THIS_WEEK = `AND DATE_TRUNC('week', ws.completed_at) = DATE_TRUNC('week', NOW())`;
+
+// Strength leaderboards
+router.get('/strength/weekly', async (req, res) => {
   try {
-    const rows = await getPointsForPeriod(
-      `AND DATE_TRUNC('week', ws.completed_at) = DATE_TRUNC('week', NOW())`
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    const [rows, goldMap] = await Promise.all([getStrengthPoints(THIS_WEEK), getGoldMedalsMap()]);
+    res.json(rows.map(r => ({ ...r, gold_medals: goldMap[r.id] || 0 })));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// All-time leaderboard
-router.get('/alltime', async (req, res) => {
+router.get('/strength/alltime', async (req, res) => {
   try {
-    const rows = await getPointsForPeriod('');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    const [rows, goldMap] = await Promise.all([getStrengthPoints(''), getGoldMedalsMap()]);
+    res.json(rows.map(r => ({ ...r, gold_medals: goldMap[r.id] || 0 })));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Cardio leaderboard
+// Cardio leaderboards
 router.get('/cardio/weekly', async (req, res) => {
   try {
-    const rows = await getCardioForPeriod(
-      `AND DATE_TRUNC('week', ws.completed_at) = DATE_TRUNC('week', NOW())`
-    );
+    const rows = await getCardioMinutes(THIS_WEEK);
     res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.get('/cardio/alltime', async (req, res) => {
   try {
-    const rows = await getCardioForPeriod('');
+    const rows = await getCardioMinutes('');
     res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

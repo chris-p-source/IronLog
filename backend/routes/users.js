@@ -5,7 +5,6 @@ const auth = require('../middleware/auth');
 
 router.use(auth);
 
-// Get own profile with stats
 router.get('/me', async (req, res) => {
   try {
     const user = await db.query(
@@ -13,7 +12,6 @@ router.get('/me', async (req, res) => {
       [req.user.id]
     );
     if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-
     const stats = await getUserStats(req.user.id);
     res.json({ ...user.rows[0], ...stats });
   } catch (err) {
@@ -22,7 +20,6 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// Update profile settings
 router.put('/me', async (req, res) => {
   const { is_public } = req.body;
   try {
@@ -37,7 +34,6 @@ router.put('/me', async (req, res) => {
   }
 });
 
-// Upload avatar (base64)
 router.post('/me/avatar', async (req, res) => {
   const { avatar_data } = req.body;
   if (!avatar_data) return res.status(400).json({ error: 'No image data provided' });
@@ -54,7 +50,6 @@ router.post('/me/avatar', async (req, res) => {
   }
 });
 
-// Change password
 router.put('/me/password', async (req, res) => {
   const { current_password, new_password } = req.body;
   if (!current_password || !new_password) {
@@ -76,7 +71,7 @@ router.put('/me/password', async (req, res) => {
   }
 });
 
-// View another user's public profile
+// View another user's profile — own profile always accessible regardless of is_public
 router.get('/:username', async (req, res) => {
   try {
     const user = await db.query(
@@ -85,25 +80,28 @@ router.get('/:username', async (req, res) => {
     );
     if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const profile = user.rows[0];
-    if (!profile.is_public && profile.id !== req.user.id) {
+
+    const isOwn = parseInt(profile.id) === parseInt(req.user.id);
+
+    if (!isOwn && !profile.is_public) {
       return res.status(403).json({ error: 'This profile is private' });
     }
+
     const stats = await getUserStats(profile.id);
 
+    // Exercise list only for public profiles or own
     let exercises = [];
-    if (profile.is_public || profile.id === req.user.id) {
-      const exResult = await db.query(
-        `SELECT DISTINCT se.exercise_name
-         FROM session_exercises se
-         JOIN workout_sessions ws ON ws.id = se.session_id
-         WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_type = 'strength'
-         ORDER BY se.exercise_name`,
-        [profile.id]
-      );
-      exercises = exResult.rows.map(r => r.exercise_name);
-    }
+    const exResult = await db.query(
+      `SELECT DISTINCT se.exercise_name
+       FROM session_exercises se
+       JOIN workout_sessions ws ON ws.id = se.session_id
+       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_type = 'strength'
+       ORDER BY se.exercise_name`,
+      [profile.id]
+    );
+    exercises = exResult.rows.map(r => r.exercise_name);
 
-    res.json({ ...profile, ...stats, exercises });
+    res.json({ ...profile, ...stats, exercises, is_own: isOwn });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -149,9 +147,10 @@ async function getUserStats(userId) {
 async function getGoldMedals(userId) {
   try {
     const result = await db.query(`
-      WITH weekly_strength AS (
-        SELECT ws.user_id, DATE_TRUNC('week', ws.completed_at) as wk,
-          COALESCE(SUM(ss.reps_completed), 0) as pts
+      WITH weekly_pts AS (
+        SELECT ws.user_id,
+          DATE_TRUNC('week', ws.completed_at) AS wk,
+          COALESCE(SUM(ss.reps_completed), 0) AS str_pts
         FROM workout_sessions ws
         LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'strength'
         LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
@@ -160,8 +159,9 @@ async function getGoldMedals(userId) {
         GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
       ),
       weekly_cardio AS (
-        SELECT ws.user_id, DATE_TRUNC('week', ws.completed_at) as wk,
-          COALESCE(SUM(se.actual_duration_minutes * 2), 0) as pts
+        SELECT ws.user_id,
+          DATE_TRUNC('week', ws.completed_at) AS wk,
+          COALESCE(SUM(se.actual_duration_minutes * 2), 0) AS crd_pts
         FROM workout_sessions ws
         LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'cardio'
         WHERE ws.completed_at IS NOT NULL
@@ -169,22 +169,21 @@ async function getGoldMedals(userId) {
         GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
       ),
       combined AS (
-        SELECT COALESCE(s.user_id, c.user_id) as user_id,
-          COALESCE(s.wk, c.wk) as wk,
-          COALESCE(s.pts, 0) + COALESCE(c.pts, 0) as total_pts
-        FROM weekly_strength s
+        SELECT COALESCE(s.user_id, c.user_id) AS user_id,
+               COALESCE(s.wk, c.wk) AS wk,
+               COALESCE(s.str_pts, 0) + COALESCE(c.crd_pts, 0) AS total_pts
+        FROM weekly_pts s
         FULL OUTER JOIN weekly_cardio c ON c.user_id = s.user_id AND c.wk = s.wk
       ),
       ranked AS (
-        SELECT user_id, wk, total_pts,
-          RANK() OVER (PARTITION BY wk ORDER BY total_pts DESC) as rnk
+        SELECT user_id, RANK() OVER (PARTITION BY wk ORDER BY total_pts DESC) AS rnk
         FROM combined WHERE total_pts > 0
       )
-      SELECT COUNT(*) as gold_medals FROM ranked WHERE user_id = $1 AND rnk = 1
+      SELECT COUNT(*) AS gold_medals FROM ranked WHERE user_id = $1 AND rnk = 1
     `, [userId]);
     return parseInt(result.rows[0].gold_medals);
   } catch { return 0; }
 }
 
 module.exports = router;
-module.exports.getUserStats = getUserStats;
+module.exports.getGoldMedals = getGoldMedals;

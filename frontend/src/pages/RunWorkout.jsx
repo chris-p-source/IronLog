@@ -18,22 +18,26 @@ function formatDateShort(d) {
 // Shows previous session data for a strength exercise
 function LastSessionBadge({ data }) {
   const [expanded, setExpanded] = useState(false);
-  if (!data || !data.sets?.length) return null;
+  // Show badge whenever there's a previous session, even with no logged sets
+  if (!data) return null;
 
-  const best = data.sets.reduce((a, s) => (!a || (s.weight_kg && parseFloat(s.weight_kg) > parseFloat(a.weight_kg || 0))) ? s : a, null);
+  const sets = data.sets || [];
+  const best = sets.reduce((a, s) => (!a || (s.weight_kg && parseFloat(s.weight_kg) > parseFloat(a.weight_kg || 0))) ? s : a, null);
 
   return (
     <div className="last-session-badge" onClick={() => setExpanded(e => !e)}>
       <div className="last-session-header">
         <span className="last-session-label">Last: {formatDateShort(data.completed_at)}</span>
-        {best?.weight_kg && (
-          <span className="last-session-best">Top: {parseFloat(best.weight_kg)}kg × {best.reps_completed}</span>
-        )}
-        {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        {best?.weight_kg
+          ? <span className="last-session-best">Top: {parseFloat(best.weight_kg)}kg × {best.reps_completed}</span>
+          : best ? <span className="last-session-best">{best.reps_completed} reps</span>
+          : <span className="last-session-best">No sets logged</span>
+        }
+        {sets.length > 0 && (expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />)}
       </div>
-      {expanded && (
+      {expanded && sets.length > 0 && (
         <div className="last-session-sets">
-          {data.sets.map(s => (
+          {sets.map(s => (
             <span key={s.set_number} className="last-session-set">
               S{s.set_number}: {s.reps_completed}r{s.weight_kg ? ` @ ${parseFloat(s.weight_kg)}kg` : ''}
             </span>

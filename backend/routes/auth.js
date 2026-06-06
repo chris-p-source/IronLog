@@ -22,12 +22,12 @@ router.post('/register', async (req, res) => {
     }
     const hash = await bcrypt.hash(password, 12);
     const result = await db.query(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, avatar_data, is_public',
       [username.toLowerCase(), hash]
     );
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.json({ token, user: { id: user.id, username: user.username } });
+    res.json({ token, user });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -44,13 +44,21 @@ router.post('/login', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const row = result.rows[0];
+    const valid = await bcrypt.compare(password, row.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.json({ token, user: { id: user.id, username: user.username } });
+    const token = jwt.sign({ id: row.id, username: row.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    res.json({
+      token,
+      user: {
+        id: row.id,
+        username: row.username,
+        avatar_data: row.avatar_data,
+        is_public: row.is_public,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
