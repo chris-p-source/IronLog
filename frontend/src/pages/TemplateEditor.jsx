@@ -104,7 +104,7 @@ export default function TemplateEditor() {
       </div>
 
       <h1 className="page-title" style={{ marginBottom: 20 }}>
-        {isEdit ? 'Edit' : 'New'} <span>Template</span>
+        {isEdit ? 'Edit' : 'New'} Template
       </h1>
 
       {error && <div className="error-msg">{error}</div>}

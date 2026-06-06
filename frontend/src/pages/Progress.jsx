@@ -126,7 +126,7 @@ export default function Progress() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Pro<span>gress</span></h1>
+        <h1 className="page-title">Progress</h1>
       </div>
 
       {/* Strength / Cardio tabs */}

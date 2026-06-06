@@ -41,7 +41,7 @@ export default function History() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Work<span>out</span> Log</h1>
+        <h1 className="page-title">Workout Log</h1>
       </div>
 
       <div className="tab-bar" style={{ marginBottom: 20 }}>

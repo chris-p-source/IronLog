@@ -50,7 +50,7 @@ export default function Templates() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">My <span>Templates</span></h1>
+        <h1 className="page-title">My Templates</h1>
         <button
           className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
           onClick={handleNew}

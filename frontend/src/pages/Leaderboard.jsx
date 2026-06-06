@@ -126,7 +126,7 @@ export default function Leaderboard() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Leader<span>board</span></h1>
+        <h1 className="page-title">Leaderboard</h1>
         <Trophy size={24} color="var(--accent)" />
       </div>
 
