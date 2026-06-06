@@ -269,11 +269,11 @@ export default function Progress() {
                   <div className="stat-box-label">Total Time</div>
                 </div>
                 <div className="stat-box">
-                  <div className="stat-box-value">{data.summary.total_sessions}</div>
+                  <div className="stat-box-value" style={{ color: 'var(--accent-secondary)' }}>{data.summary.total_sessions}</div>
                   <div className="stat-box-label">Sessions</div>
                 </div>
                 <div className="stat-box">
-                  <div className="stat-box-value">
+                  <div className="stat-box-value" style={{ color: 'var(--accent-secondary)' }}>
                     {data.summary.total_sessions > 0
                       ? `${Math.round(data.summary.total_minutes / data.summary.total_sessions)} min`
                       : '—'}
