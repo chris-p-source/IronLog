@@ -71,6 +71,76 @@ router.put('/me/password', async (req, res) => {
   }
 });
 
+// Export all of the current user's data as JSON
+router.get('/me/export', async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [user, templates, sessions, bodyweights, prs] = await Promise.all([
+      db.query('SELECT id, username, is_public, created_at FROM users WHERE id = $1', [userId]),
+      db.query('SELECT * FROM workout_templates WHERE user_id = $1 ORDER BY created_at', [userId]),
+      db.query('SELECT * FROM workout_sessions WHERE user_id = $1 ORDER BY started_at', [userId]),
+      db.query('SELECT weight_kg, logged_at FROM user_bodyweights WHERE user_id = $1 ORDER BY logged_at', [userId]),
+      db.query(
+        `SELECT se.exercise_name, MAX(ss.weight_kg) as pr_weight, MAX(ss.reps_completed) as pr_reps
+         FROM session_exercises se
+         JOIN workout_sessions ws ON ws.id = se.session_id
+         JOIN session_sets ss ON ss.session_exercise_id = se.id
+         WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL
+         GROUP BY se.exercise_name
+         ORDER BY se.exercise_name`,
+        [userId]
+      ),
+    ]);
+
+    if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const templateIds = templates.rows.map(t => t.id);
+    const templateExercises = templateIds.length
+      ? await db.query('SELECT * FROM template_exercises WHERE template_id = ANY($1) ORDER BY template_id, order_index', [templateIds])
+      : { rows: [] };
+
+    const sessionIds = sessions.rows.map(s => s.id);
+    const [sessionExercises, sessionSets] = sessionIds.length
+      ? await Promise.all([
+          db.query('SELECT * FROM session_exercises WHERE session_id = ANY($1) ORDER BY session_id, order_index', [sessionIds]),
+          db.query(
+            `SELECT ss.* FROM session_sets ss
+             JOIN session_exercises se ON se.id = ss.session_exercise_id
+             WHERE se.session_id = ANY($1) ORDER BY ss.session_exercise_id, ss.set_number`,
+            [sessionIds]
+          ),
+        ])
+      : [{ rows: [] }, { rows: [] }];
+
+    const exercisesByTemplate = {};
+    for (const ex of templateExercises.rows) {
+      (exercisesByTemplate[ex.template_id] ||= []).push(ex);
+    }
+
+    const setsByExercise = {};
+    for (const s of sessionSets.rows) {
+      (setsByExercise[s.session_exercise_id] ||= []).push(s);
+    }
+    const exercisesBySession = {};
+    for (const ex of sessionExercises.rows) {
+      (exercisesBySession[ex.session_id] ||= []).push({ ...ex, sets: setsByExercise[ex.id] || [] });
+    }
+
+    res.json({
+      exported_at: new Date().toISOString(),
+      user: user.rows[0],
+      templates: templates.rows.map(t => ({ ...t, exercises: exercisesByTemplate[t.id] || [] })),
+      workout_sessions: sessions.rows.map(s => ({ ...s, exercises: exercisesBySession[s.id] || [] })),
+      bodyweight_log: bodyweights.rows,
+      personal_records: prs.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // View another user's profile — own profile always accessible regardless of is_public
 router.get('/:username', async (req, res) => {
   try {

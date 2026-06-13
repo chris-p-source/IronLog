@@ -16,6 +16,7 @@ app.use('/api/progress', require('./routes/progress'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/exercises', require('./routes/exercises'));
+app.use('/api/bodyweight', require('./routes/bodyweight'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', registerEnabled: config.REGISTER_ENABLED }));
 
 if (config.NODE_ENV === 'production') {
@@ -102,6 +103,18 @@ async function migrate() {
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS actual_duration_minutes DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS template_type VARCHAR(20) DEFAULT 'strength';
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS cardio_metrics JSONB;
+    ALTER TABLE template_exercises ADD COLUMN IF NOT EXISTS rest_seconds INTEGER DEFAULT 120;
+    ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS rest_seconds INTEGER DEFAULT 120;
+    ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS notes TEXT;
+
+    CREATE TABLE IF NOT EXISTS user_bodyweights (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      weight_kg DECIMAL(5,2) NOT NULL,
+      logged_at DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, logged_at)
+    );
   `);
 
   console.log('Database migrated successfully');

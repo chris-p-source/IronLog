@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, Clock, TrendingUp, Trophy } from 'lucide-react';
+import { Dumbbell, Clock, TrendingUp, Trophy, Scale } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -36,6 +36,13 @@ export default function BottomNav() {
       >
         <Trophy />
         <span>Leaderboard</span>
+      </button>
+      <button
+        className={`nav-item ${path === '/bodyweight' ? 'active' : ''}`}
+        onClick={() => navigate('/bodyweight')}
+      >
+        <Scale />
+        <span>Weight</span>
       </button>
     </nav>
   );

@@ -32,9 +32,9 @@ router.post('/start', async (req, res) => {
     for (const ex of exercises.rows) {
       await client.query(
         `INSERT INTO session_exercises
-           (session_id, exercise_name, exercise_type, sets_planned, reps_planned, planned_duration_minutes, order_index)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [sessionId, ex.name, ex.exercise_type || 'strength', ex.sets || 0, ex.reps || 0, ex.planned_duration_minutes || null, ex.order_index]
+           (session_id, exercise_name, exercise_type, sets_planned, reps_planned, planned_duration_minutes, rest_seconds, order_index)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [sessionId, ex.name, ex.exercise_type || 'strength', ex.sets || 0, ex.reps || 0, ex.planned_duration_minutes || null, ex.rest_seconds || 120, ex.order_index]
       );
     }
     await client.query('COMMIT');
@@ -98,14 +98,16 @@ router.post('/:sessionId/log-cardio', async (req, res) => {
 });
 
 router.post('/:sessionId/complete', async (req, res) => {
+  const { notes } = req.body;
   try {
     const result = await db.query(
       `UPDATE workout_sessions
        SET completed_at = NOW(),
-           duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int
+           duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int,
+           notes = $3
        WHERE id = $1 AND user_id = $2 AND completed_at IS NULL
        RETURNING *`,
-      [req.params.sessionId, req.user.id]
+      [req.params.sessionId, req.user.id, notes || null]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found or already completed' });
     res.json(result.rows[0]);

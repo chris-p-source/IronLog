@@ -11,6 +11,7 @@ const newExercise = (name, type) => ({
   sets: 3,
   reps: 10,
   planned_duration_minutes: 30,
+  rest_seconds: 120,
 });
 
 export default function TemplateEditor() {
@@ -41,6 +42,7 @@ export default function TemplateEditor() {
           _key: String(e.id),
           exercise_type: e.exercise_type || 'strength',
           planned_duration_minutes: e.planned_duration_minutes || 30,
+          rest_seconds: e.rest_seconds || 120,
         })));
         setLoading(false);
       })
@@ -77,6 +79,7 @@ export default function TemplateEditor() {
           planned_duration_minutes: templateType === 'cardio'
             ? Math.max(1, parseInt(e.planned_duration_minutes) || 30)
             : null,
+          rest_seconds: templateType === 'cardio' ? 120 : Math.max(10, parseInt(e.rest_seconds) || 120),
         })),
       };
       if (isEdit) await api.put(`/templates/${id}`, payload);
@@ -220,6 +223,13 @@ export default function TemplateEditor() {
                   type="number" min={1} max={200}
                   value={ex.reps}
                   onChange={e => update(ex._key, 'reps', e.target.value)}
+                />
+                <span className="row-label" style={{ marginLeft: 14 }}>Rest (s)</span>
+                <input
+                  className="form-input num-input"
+                  type="number" min={10} max={600} step={5}
+                  value={ex.rest_seconds}
+                  onChange={e => update(ex._key, 'rest_seconds', e.target.value)}
                 />
               </div>
             )}

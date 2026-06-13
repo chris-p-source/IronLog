@@ -77,6 +77,15 @@ export default function WorkoutDetail() {
         </div>
       )}
 
+      {session.notes && (
+        <div className="workout-notes-box" style={{ marginBottom: 20 }}>
+          <div className="section-heading" style={{ marginBottom: 6 }}>Notes</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            {session.notes}
+          </div>
+        </div>
+      )}
+
       <div className="section-heading">Exercises</div>
 
       {exercises.map(ex => (

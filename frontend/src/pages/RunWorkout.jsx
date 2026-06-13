@@ -1,9 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import api from '../api';
 
-const REST_DURATION = 120;
+const DEFAULT_REST = 120;
+const BAR_WEIGHT = 20;
+const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+
+// Returns array of plates needed per side to reach targetKg (assumes 20kg bar)
+function calcPlates(targetKg) {
+  let perSide = (targetKg - BAR_WEIGHT) / 2;
+  if (perSide <= 0) return [];
+  const result = [];
+  for (const plate of PLATES) {
+    while (perSide + 1e-6 >= plate) {
+      result.push(plate);
+      perSide -= plate;
+    }
+  }
+  return result;
+}
 
 function formatTime(s) {
   const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -55,6 +71,9 @@ function LastSessionBadge({ data }) {
   if (!data) return null;
   const sets = data.sets || [];
   const best = sets.reduce((a, s) => (!a || (s.weight_kg && parseFloat(s.weight_kg) > parseFloat(a.weight_kg || 0))) ? s : a, null);
+  const suggestion = best?.weight_kg
+    ? `Try ${(parseFloat(best.weight_kg) + 2.5)}kg × ${best.reps_completed}?`
+    : null;
 
   return (
     <div className="last-session-badge" onClick={() => sets.length > 0 && setExpanded(e => !e)}>
@@ -68,6 +87,9 @@ function LastSessionBadge({ data }) {
         }
         {sets.length > 0 && (expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />)}
       </div>
+      {suggestion && (
+        <div className="overload-suggestion">{suggestion}</div>
+      )}
       {expanded && sets.length > 0 && (
         <div className="last-session-sets">
           {sets.map(s => (
@@ -77,6 +99,25 @@ function LastSessionBadge({ data }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlateCalc({ weightKg, onClose }) {
+  const plates = calcPlates(weightKg);
+  return (
+    <div className="plate-calc-popover" onClick={e => e.stopPropagation()}>
+      <div className="plate-calc-title">Per side ({BAR_WEIGHT}kg bar)</div>
+      {plates.length === 0 ? (
+        <div className="plate-calc-empty">Bar only</div>
+      ) : (
+        <div className="plate-calc-plates">
+          {plates.map((p, i) => (
+            <span key={i} className="plate-chip">{p}</span>
+          ))}
+        </div>
+      )}
+      <button className="plate-calc-close" onClick={onClose}>Close</button>
     </div>
   );
 }
@@ -113,7 +154,8 @@ export default function RunWorkout() {
 
   const [elapsed, setElapsed] = useState(0);
   const [restActive, setRestActive] = useState(false);
-  const [restRemaining, setRestRemaining] = useState(REST_DURATION);
+  const [restRemaining, setRestRemaining] = useState(DEFAULT_REST);
+  const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [restExName, setRestExName] = useState('');
 
   const [setData, setSetData] = useState({});
@@ -121,6 +163,10 @@ export default function RunWorkout() {
   const [cardioData, setCardioData] = useState({});
   const [showFinish, setShowFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [prCelebration, setPrCelebration] = useState(null);
+  const [plateCalcKey, setPlateCalcKey] = useState(null);
+  const prTimeoutRef = useRef(null);
 
   const elapsedRef = useRef(null);
   const restRef = useRef(null);
@@ -179,10 +225,12 @@ export default function RunWorkout() {
     return () => clearInterval(restRef.current);
   }, [restActive]);
 
-  const startRest = (exName) => {
+  const startRest = (ex) => {
     clearInterval(restRef.current);
-    setRestRemaining(REST_DURATION);
-    setRestExName(exName);
+    const duration = ex.rest_seconds || DEFAULT_REST;
+    setRestDuration(duration);
+    setRestRemaining(duration);
+    setRestExName(ex.exercise_name);
     setRestActive(true);
   };
 
@@ -202,16 +250,36 @@ export default function RunWorkout() {
     const nowDone = !current.done;
     updateSet(ex.id, setNum, 'done', nowDone);
     if (nowDone) {
-      startRest(ex.exercise_name);
+      startRest(ex);
+
+      const weight = current.weight ? Number(current.weight) : 0;
+      const reps = Number(current.reps) || 0;
+      const last = lastSessionData[ex.id];
+      const prWeight = parseFloat(last?.pr_weight) || 0;
+      const prReps = parseInt(last?.pr_reps) || 0;
+      if (weight > 0 && weight > prWeight) {
+        showPrCelebration(`New Weight PR! ${weight}kg on ${ex.exercise_name}`);
+      } else if (weight >= prWeight && weight > 0 && reps > prReps) {
+        showPrCelebration(`New Rep PR! ${reps} reps on ${ex.exercise_name}`);
+      } else if (weight === 0 && reps > prReps && prReps > 0) {
+        showPrCelebration(`New Rep PR! ${reps} reps on ${ex.exercise_name}`);
+      }
+
       try {
         await api.post(`/workouts/${sessionId}/log-set`, {
           session_exercise_id: ex.id,
           set_number: setNum,
-          reps_completed: Number(current.reps) || 0,
+          reps_completed: reps,
           weight_kg: current.weight ? Number(current.weight) : null,
         });
       } catch (e) { console.error(e); }
     }
+  };
+
+  const showPrCelebration = (message) => {
+    clearTimeout(prTimeoutRef.current);
+    setPrCelebration(message);
+    prTimeoutRef.current = setTimeout(() => setPrCelebration(null), 2800);
   };
 
   const toggleCardio = async (ex) => {
@@ -233,7 +301,7 @@ export default function RunWorkout() {
   const handleFinish = async () => {
     setFinishing(true);
     try {
-      await api.post(`/workouts/${sessionId}/complete`);
+      await api.post(`/workouts/${sessionId}/complete`, { notes: notes.trim() || null });
       navigate('/history', { replace: true });
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save workout');
@@ -320,6 +388,17 @@ export default function RunWorkout() {
                           placeholder={lastSet?.weight_kg ? String(parseFloat(lastSet.weight_kg)) : '—'}
                         />
                       </div>
+                      <button
+                        type="button"
+                        className="plate-calc-btn"
+                        onClick={() => setPlateCalcKey(k => k === `${ex.id}-${setNum}` ? null : `${ex.id}-${setNum}`)}
+                        title="Plate calculator"
+                      >
+                        <Calculator size={15} />
+                      </button>
+                      {plateCalcKey === `${ex.id}-${setNum}` && (
+                        <PlateCalc weightKg={Number(s.weight) || 0} onClose={() => setPlateCalcKey(null)} />
+                      )}
                     </div>
                     <button
                       className={`set-done-btn${s.done ? ' done' : ''}`}
@@ -416,9 +495,15 @@ export default function RunWorkout() {
           <div className="rest-timer-heading">Rest — {restExName}</div>
           <div className="rest-timer-value">{formatTime(restRemaining)}</div>
           <div className="rest-timer-track">
-            <div className="rest-timer-bar" style={{ width: `${(restRemaining / REST_DURATION) * 100}%` }} />
+            <div className="rest-timer-bar" style={{ width: `${(restRemaining / restDuration) * 100}%` }} />
           </div>
           <div className="rest-timer-hint">Tap anywhere to skip</div>
+        </div>
+      )}
+
+      {prCelebration && (
+        <div className="pr-celebration" onClick={() => setPrCelebration(null)}>
+          <Trophy size={20} /> {prCelebration}
         </div>
       )}
 
@@ -429,6 +514,16 @@ export default function RunWorkout() {
             <div className="modal-title">Finish Workout?</div>
             <div className="modal-body">
               {totalDone} of {totalItems} items completed in {formatTime(elapsed)}.
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notes</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="How did it feel? Anything to remember..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+              />
             </div>
             <div className="modal-actions">
               <button className="btn btn-success btn-block btn-lg" onClick={handleFinish} disabled={finishing}>

@@ -390,6 +390,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .exercise-row .row-label {
@@ -535,6 +536,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   border-bottom: 1px solid var(--border);
   gap: 10px;
   transition: background 0.2s;
+  position: relative;
 }
 
 .set-row:last-child { border-bottom: none; }
@@ -1647,6 +1649,125 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 }
 
 .last-session-badge:hover { background: rgba(255,255,255,0.05); }
+
+.overload-suggestion {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+}
+
+/* ── Plate calculator ── */
+.plate-calc-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.plate-calc-btn:active { transform: scale(0.92); }
+
+.plate-calc-popover {
+  position: absolute;
+  right: 8px;
+  bottom: 56px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 12px;
+  padding: 12px 14px;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  min-width: 160px;
+}
+
+.plate-calc-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.plate-calc-plates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.plate-chip {
+  background: var(--accent);
+  color: #000;
+  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.plate-calc-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.plate-calc-close {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── PR celebration ── */
+.pr-celebration {
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  color: #000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 20px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 400;
+  box-shadow: 0 8px 30px rgba(255,107,0,0.4);
+  max-width: 90%;
+  text-align: center;
+  animation: pr-pop 0.3s ease-out;
+}
+
+@keyframes pr-pop {
+  from { opacity: 0; transform: translate(-50%, -16px) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+.workout-notes-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
 
 .last-session-header {
   display: flex;

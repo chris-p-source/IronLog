@@ -64,6 +64,15 @@ router.get('/last-session/:exerciseName', async (req, res) => {
       [ex.id]
     );
 
+    const pr = await db.query(
+      `SELECT MAX(ss.weight_kg) as pr_weight, MAX(ss.reps_completed) as pr_reps
+       FROM session_exercises se
+       JOIN workout_sessions ws ON ws.id = se.session_id
+       JOIN session_sets ss ON ss.session_exercise_id = se.id
+       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_name = $2`,
+      [userId, exerciseName]
+    );
+
     res.json({
       completed_at: completedAt,
       exercise_type: ex.exercise_type,
@@ -72,6 +81,8 @@ router.get('/last-session/:exerciseName', async (req, res) => {
       actual_duration_minutes: ex.actual_duration_minutes,
       cardio_metrics: ex.cardio_metrics,
       sets: sets.rows,
+      pr_weight: pr.rows[0]?.pr_weight,
+      pr_reps: pr.rows[0]?.pr_reps,
     });
   } catch (err) {
     console.error(err);

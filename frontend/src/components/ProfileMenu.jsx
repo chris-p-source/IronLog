@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, LogOut, ChevronRight, User } from 'lucide-react';
+import { Lock, LogOut, ChevronRight, User, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -76,6 +76,23 @@ export default function ProfileMenu({ onClose }) {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const handleExport = async () => {
+    try {
+      const res = await api.get('/users/me/export');
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ironlog-export-${user?.username}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Export failed');
+    }
+  };
+
   const initials = user?.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
@@ -123,6 +140,12 @@ export default function ProfileMenu({ onClose }) {
             <div className="profile-menu-row" onClick={() => { navigate(`/user/${user?.username}`); onClose(); }}>
               <div className="profile-menu-row-icon"><User size={18} /></div>
               <div className="profile-menu-row-title" style={{ flex: 1 }}>View My Profile</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
+            </div>
+
+            <div className="profile-menu-row" onClick={handleExport}>
+              <div className="profile-menu-row-icon"><Download size={18} /></div>
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>Export My Data (JSON)</div>
               <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 
