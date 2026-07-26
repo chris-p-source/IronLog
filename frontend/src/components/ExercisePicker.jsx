@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Check } from 'lucide-react';
+import { X, Search, Check, CheckCircle2 } from 'lucide-react';
 import api from '../api';
 
 export default function ExercisePicker({ templateType, addedNames, onAdd, onRemove, onClose }) {
@@ -42,10 +42,7 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onRemo
         onClick={() => handleTap(ex.name)}
       >
         <span className="picker-item-name">{ex.name}</span>
-        {added
-          ? <span className="picker-item-remove"><X size={14} /></span>
-          : null
-        }
+        {added && <CheckCircle2 size={16} strokeWidth={2.5} />}
       </button>
     );
   };
@@ -96,6 +93,13 @@ export default function ExercisePicker({ templateType, addedNames, onAdd, onRemo
               No exercises match "{search}"
             </div>
           )}
+        </div>
+
+        <div className="picker-footer">
+          <button className="btn btn-primary btn-block btn-lg" onClick={onClose}>
+            <Check size={18} />
+            {addedSet.size > 0 ? `Save ${addedSet.size} Exercise${addedSet.size !== 1 ? 's' : ''}` : 'Done'}
+          </button>
         </div>
       </div>
     </div>
