@@ -105,6 +105,8 @@ async function migrate() {
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS cardio_metrics JSONB;
     ALTER TABLE template_exercises ADD COLUMN IF NOT EXISTS rest_seconds INTEGER DEFAULT 120;
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS rest_seconds INTEGER DEFAULT 120;
+    ALTER TABLE template_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
+    ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS notes TEXT;
 
     CREATE TABLE IF NOT EXISTS user_bodyweights (

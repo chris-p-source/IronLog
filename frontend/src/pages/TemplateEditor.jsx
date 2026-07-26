@@ -12,6 +12,7 @@ const newExercise = (name, type) => ({
   reps: 10,
   planned_duration_minutes: 30,
   rest_seconds: 120,
+  base_weight_kg: '',
 });
 
 export default function TemplateEditor() {
@@ -43,6 +44,7 @@ export default function TemplateEditor() {
           exercise_type: e.exercise_type || 'strength',
           planned_duration_minutes: e.planned_duration_minutes || 30,
           rest_seconds: e.rest_seconds || 120,
+          base_weight_kg: e.base_weight_kg || '',
         })));
         setLoading(false);
       })
@@ -80,6 +82,7 @@ export default function TemplateEditor() {
             ? Math.max(1, parseInt(e.planned_duration_minutes) || 30)
             : null,
           rest_seconds: templateType === 'cardio' ? 120 : Math.max(10, parseInt(e.rest_seconds) || 120),
+          base_weight_kg: templateType === 'cardio' ? null : (e.base_weight_kg ? parseFloat(e.base_weight_kg) : null),
         })),
       };
       if (isEdit) await api.put(`/templates/${id}`, payload);
@@ -231,6 +234,17 @@ export default function TemplateEditor() {
                   value={ex.rest_seconds}
                   onChange={e => update(ex._key, 'rest_seconds', e.target.value)}
                 />
+              </div>
+              <div className="exercise-row" style={{ marginTop: 6 }}>
+                <span className="row-label">Base Weight (kg)</span>
+                <input
+                  className="form-input num-input"
+                  type="number" min={0} step={0.5}
+                  placeholder="—"
+                  value={ex.base_weight_kg}
+                  onChange={e => update(ex._key, 'base_weight_kg', e.target.value)}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>starting weight</span>
               </div>
             )}
           </div>

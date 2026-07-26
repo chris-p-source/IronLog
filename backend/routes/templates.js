@@ -50,8 +50,8 @@ async function upsertExercises(client, templateId, exercises, templateType) {
     const isCardio = templateType === 'cardio';
     await client.query(
       `INSERT INTO template_exercises
-         (template_id, name, exercise_type, sets, reps, planned_duration_minutes, rest_seconds, order_index)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         (template_id, name, exercise_type, sets, reps, planned_duration_minutes, rest_seconds, base_weight_kg, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         templateId,
         ex.name,
@@ -60,6 +60,7 @@ async function upsertExercises(client, templateId, exercises, templateType) {
         isCardio ? 0 : (parseInt(ex.reps) || 10),
         isCardio ? (parseInt(ex.planned_duration_minutes) || 30) : null,
         isCardio ? 120 : (parseInt(ex.rest_seconds) || 120),
+        isCardio ? null : (ex.base_weight_kg ? parseFloat(ex.base_weight_kg) : null),
         i,
       ]
     );

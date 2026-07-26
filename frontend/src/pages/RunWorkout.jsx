@@ -187,9 +187,10 @@ export default function RunWorkout() {
       if (ex.exercise_type === 'cardio') {
         initCardio[ex.id] = { minutes: String(ex.planned_duration_minutes || ''), done: false, metrics: {} };
       } else {
+        const baseWeight = ex.base_weight_kg ? String(parseFloat(ex.base_weight_kg)) : '';
         initSets[ex.id] = {};
         for (let s = 1; s <= ex.sets_planned; s++) {
-          initSets[ex.id][s] = { reps: String(ex.reps_planned), weight: '', done: false };
+          initSets[ex.id][s] = { reps: String(ex.reps_planned), weight: baseWeight, done: false };
         }
       }
     }
@@ -205,6 +206,25 @@ export default function RunWorkout() {
         } catch { /* silent */ }
       }));
       setLastSessionData(results);
+
+      // Pre-fill weights from last session, per set number
+      setSetData(prev => {
+        const next = { ...prev };
+        for (const ex of exercises) {
+          if (ex.exercise_type === 'cardio') continue;
+          const lastSets = results[ex.id]?.sets || [];
+          if (lastSets.length === 0) continue;
+          next[ex.id] = { ...next[ex.id] };
+          for (let s = 1; s <= ex.sets_planned; s++) {
+            const lastSet = lastSets.find(ls => ls.set_number === s) || lastSets[lastSets.length - 1];
+            const lastWeight = lastSet?.weight_kg ? String(parseFloat(lastSet.weight_kg)) : '';
+            if (lastWeight && next[ex.id]?.[s] && !next[ex.id][s].done) {
+              next[ex.id][s] = { ...next[ex.id][s], weight: lastWeight };
+            }
+          }
+        }
+        return next;
+      });
     };
     fetchLast();
   }, [exercises]);
