@@ -218,8 +218,13 @@ export default function RunWorkout() {
           for (let s = 1; s <= ex.sets_planned; s++) {
             const lastSet = lastSets.find(ls => ls.set_number === s) || lastSets[lastSets.length - 1];
             const lastWeight = lastSet?.weight_kg ? String(parseFloat(lastSet.weight_kg)) : '';
-            if (lastWeight && next[ex.id]?.[s] && !next[ex.id][s].done) {
-              next[ex.id][s] = { ...next[ex.id][s], weight: lastWeight };
+            const lastReps = lastSet?.reps_completed ? String(lastSet.reps_completed) : '';
+            if ((lastWeight || lastReps) && next[ex.id]?.[s] && !next[ex.id][s].done) {
+              next[ex.id][s] = {
+                ...next[ex.id][s],
+                ...(lastWeight && { weight: lastWeight }),
+                ...(lastReps && { reps: lastReps }),
+              };
             }
           }
         }
