@@ -212,6 +212,7 @@ export default function TemplateEditor() {
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', marginLeft: 8 }}>planned</span>
               </div>
             ) : (
+              <>
               <div className="exercise-row">
                 <span className="row-label">Sets</span>
                 <input
@@ -246,6 +247,7 @@ export default function TemplateEditor() {
                 />
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>starting weight</span>
               </div>
+              </>
             )}
           </div>
         ))
