@@ -17,6 +17,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/exercises', require('./routes/exercises'));
 app.use('/api/bodyweight', require('./routes/bodyweight'));
+app.use('/api/push', require('./routes/push'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', registerEnabled: config.REGISTER_ENABLED }));
 
 if (config.NODE_ENV === 'production') {
@@ -108,6 +109,15 @@ async function migrate() {
     ALTER TABLE template_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS notes TEXT;
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL,
+      subscription_json TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, endpoint)
+    );
 
     CREATE TABLE IF NOT EXISTS user_bodyweights (
       id SERIAL PRIMARY KEY,

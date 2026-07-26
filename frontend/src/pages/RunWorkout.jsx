@@ -3,6 +3,13 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import api from '../api';
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
 const DEFAULT_REST = 120;
 const BAR_WEIGHT = 20;
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -168,6 +175,7 @@ export default function RunWorkout() {
   const [prCelebration, setPrCelebration] = useState(null);
   const [plateCalcKey, setPlateCalcKey] = useState(null);
   const prTimeoutRef = useRef(null);
+  const pushReadyRef = useRef(false);
 
   const elapsedRef = useRef(null);
   const restRef = useRef(null);
@@ -284,6 +292,29 @@ export default function RunWorkout() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
+  // Request push permission and subscribe on mount
+  useEffect(() => {
+    async function setupPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        const reg = await navigator.serviceWorker.ready;
+        const keyRes = await api.get('/push/vapid-public-key').catch(() => null);
+        if (!keyRes?.data?.publicKey) return;
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyRes.data.publicKey),
+        });
+        await api.post('/push/subscribe', { subscription: sub.toJSON() });
+        pushReadyRef.current = true;
+      } catch (err) {
+        console.warn('Push setup failed:', err);
+      }
+    }
+    setupPush();
+  }, []);
+
   const startRest = (ex) => {
     clearInterval(restRef.current);
     const duration = ex.rest_seconds || DEFAULT_REST;
@@ -294,6 +325,13 @@ export default function RunWorkout() {
     setRestExName(ex.exercise_name);
     setRestMinimized(false);
     setRestActive(true);
+
+    if (pushReadyRef.current) {
+      api.post('/push/rest-timer', {
+        duration_seconds: duration,
+        exercise_name: ex.exercise_name,
+      }).catch(() => {});
+    }
   };
 
   const skipRest = () => {
