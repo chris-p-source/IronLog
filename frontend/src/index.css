@@ -679,6 +679,86 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   letter-spacing: 0.5px;
 }
 
+.rest-timer-skip-btn {
+  margin-top: 24px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 10px 28px;
+  cursor: pointer;
+}
+
+/* ── Rest banner (minimised state) ── */
+.rest-banner {
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 456px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  z-index: 150;
+  box-shadow: 0 4px 20px rgba(230,48,48,0.2);
+  cursor: pointer;
+}
+
+.rest-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rest-banner-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+}
+
+.rest-banner-time {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.rest-banner-ex {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.rest-banner-skip {
+  background: var(--bg-input);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ── Finish section ── */
 .finish-section {
   padding: 14px 14px;

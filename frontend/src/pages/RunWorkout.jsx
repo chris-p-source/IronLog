@@ -154,6 +154,7 @@ export default function RunWorkout() {
 
   const [elapsed, setElapsed] = useState(0);
   const [restActive, setRestActive] = useState(false);
+  const [restMinimized, setRestMinimized] = useState(false);
   const [restRemaining, setRestRemaining] = useState(DEFAULT_REST);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [restExName, setRestExName] = useState('');
@@ -170,6 +171,9 @@ export default function RunWorkout() {
 
   const elapsedRef = useRef(null);
   const restRef = useRef(null);
+  const workoutStartRef = useRef(null);
+  const restStartRef = useRef(null);
+  const restDurationRef = useRef(DEFAULT_REST);
 
   useEffect(() => {
     if (loading) {
@@ -234,32 +238,72 @@ export default function RunWorkout() {
     fetchLast();
   }, [exercises]);
 
+  // Workout elapsed timer — timestamp-based so screen lock doesn't lose time
   useEffect(() => {
-    elapsedRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    if (!session) return;
+    workoutStartRef.current = new Date(session.started_at).getTime();
+    const tick = () => setElapsed(Math.floor((Date.now() - workoutStartRef.current) / 1000));
+    tick();
+    elapsedRef.current = setInterval(tick, 1000);
     return () => clearInterval(elapsedRef.current);
-  }, []);
+  }, [session]);
 
+  // Rest timer — timestamp-based
   useEffect(() => {
     if (!restActive) return;
-    restRef.current = setInterval(() => {
-      setRestRemaining(r => {
-        if (r <= 1) { clearInterval(restRef.current); setRestActive(false); return 0; }
-        return r - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const secs = Math.floor((Date.now() - restStartRef.current) / 1000);
+      const remaining = Math.max(0, restDurationRef.current - secs);
+      setRestRemaining(remaining);
+      if (remaining <= 0) {
+        clearInterval(restRef.current);
+        setRestActive(false);
+        setRestMinimized(false);
+      }
+    };
+    tick();
+    restRef.current = setInterval(tick, 500);
     return () => clearInterval(restRef.current);
   }, [restActive]);
+
+  // On returning from background/lock screen, immediately recalculate both timers
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (workoutStartRef.current) {
+        setElapsed(Math.floor((Date.now() - workoutStartRef.current) / 1000));
+      }
+      if (restStartRef.current) {
+        const secs = Math.floor((Date.now() - restStartRef.current) / 1000);
+        const remaining = Math.max(0, restDurationRef.current - secs);
+        setRestRemaining(remaining);
+        if (remaining <= 0) { setRestActive(false); setRestMinimized(false); }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   const startRest = (ex) => {
     clearInterval(restRef.current);
     const duration = ex.rest_seconds || DEFAULT_REST;
+    restStartRef.current = Date.now();
+    restDurationRef.current = duration;
     setRestDuration(duration);
     setRestRemaining(duration);
     setRestExName(ex.exercise_name);
+    setRestMinimized(false);
     setRestActive(true);
   };
 
-  const skipRest = () => { clearInterval(restRef.current); setRestActive(false); };
+  const skipRest = () => {
+    clearInterval(restRef.current);
+    restStartRef.current = null;
+    setRestActive(false);
+    setRestMinimized(false);
+  };
+
+  const minimizeRest = () => setRestMinimized(true);
 
   const updateSet = (exId, setNum, field, value) => {
     setSetData(d => ({ ...d, [exId]: { ...d[exId], [setNum]: { ...d[exId]?.[setNum], [field]: value } } }));
@@ -515,14 +559,36 @@ export default function RunWorkout() {
         </button>
       </div>
 
-      {restActive && (
-        <div className="rest-timer-overlay" onClick={skipRest}>
+      {restActive && !restMinimized && (
+        <div className="rest-timer-overlay" onClick={minimizeRest}>
           <div className="rest-timer-heading">Rest — {restExName}</div>
           <div className="rest-timer-value">{formatTime(restRemaining)}</div>
           <div className="rest-timer-track">
             <div className="rest-timer-bar" style={{ width: `${(restRemaining / restDuration) * 100}%` }} />
           </div>
-          <div className="rest-timer-hint">Tap anywhere to skip</div>
+          <div className="rest-timer-hint">Tap to minimise</div>
+          <button
+            className="rest-timer-skip-btn"
+            onClick={e => { e.stopPropagation(); skipRest(); }}
+          >
+            Skip Rest
+          </button>
+        </div>
+      )}
+
+      {restActive && restMinimized && (
+        <div className="rest-banner" onClick={() => setRestMinimized(false)}>
+          <div className="rest-banner-left">
+            <span className="rest-banner-label">REST</span>
+            <span className="rest-banner-time">{formatTime(restRemaining)}</span>
+            <span className="rest-banner-ex">{restExName}</span>
+          </div>
+          <button
+            className="rest-banner-skip"
+            onClick={e => { e.stopPropagation(); skipRest(); }}
+          >
+            Skip
+          </button>
         </div>
       )}
 
