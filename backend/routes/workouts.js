@@ -5,7 +5,7 @@ const auth = require('../middleware/auth');
 router.use(auth);
 
 router.post('/start', async (req, res) => {
-  const { template_id } = req.body;
+  const { template_id, started_at } = req.body;
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -18,11 +18,12 @@ router.post('/start', async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
     const template = tmpl.rows[0];
+    const sessionStart = started_at ? new Date(started_at) : new Date();
     const session = await client.query(
       `INSERT INTO workout_sessions
          (user_id, template_id, template_name, template_type, started_at)
-       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-      [req.user.id, template_id, template.name, template.template_type || 'strength']
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.user.id, template_id, template.name, template.template_type || 'strength', sessionStart]
     );
     const exercises = await client.query(
       'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
@@ -98,16 +99,17 @@ router.post('/:sessionId/log-cardio', async (req, res) => {
 });
 
 router.post('/:sessionId/complete', async (req, res) => {
-  const { notes } = req.body;
+  const { notes, completed_at } = req.body;
+  const completedAt = completed_at ? new Date(completed_at) : new Date();
   try {
     const result = await db.query(
       `UPDATE workout_sessions
-       SET completed_at = NOW(),
-           duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int,
-           notes = $3
+       SET completed_at = $3,
+           duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($3 - started_at))::int),
+           notes = $4
        WHERE id = $1 AND user_id = $2 AND completed_at IS NULL
        RETURNING *`,
-      [req.params.sessionId, req.user.id, notes || null]
+      [req.params.sessionId, req.user.id, completedAt, notes || null]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found or already completed' });
     res.json(result.rows[0]);

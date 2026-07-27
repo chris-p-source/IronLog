@@ -104,9 +104,6 @@ export default function TemplateEditor() {
         <button className="back-btn" onClick={() => navigate('/')}>
           <ArrowLeft size={15} /> Back
         </button>
-        <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
       </div>
 
       <h1 className="page-title" style={{ marginBottom: 20 }}>
@@ -253,7 +250,7 @@ export default function TemplateEditor() {
         ))
       )}
 
-      <div style={{ height: 20 }} />
+      <div style={{ height: 100 }} />
 
       {showPicker && (
         <ExercisePicker
@@ -264,6 +261,18 @@ export default function TemplateEditor() {
           onClose={() => setShowPicker(false)}
         />
       )}
+
+      <div className="template-save-footer">
+        {error && <div className="error-msg" style={{ marginBottom: 10 }}>{error}</div>}
+        <button
+          className={`btn ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
+          style={{ width: '100%' }}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Save Template'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,13 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Pencil, Trash2, Dumbbell, Heart } from 'lucide-react';
+import { Plus, Play, Pencil, Trash2, Dumbbell, Heart, CalendarDays, X } from 'lucide-react';
 import api from '../api';
+
+function BackfillModal({ template, onClose, onConfirm }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  const [time, setTime] = useState('12:00');
+
+  const handleConfirm = () => {
+    const iso = new Date(`${date}T${time}:00`).toISOString();
+    onConfirm(iso);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Log Past Workout</span>
+          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+          When did you complete <strong style={{ color: 'var(--text-primary)' }}>{template.name}</strong>?
+        </p>
+        <div className="form-group">
+          <label className="form-label">Date</label>
+          <input
+            type="date"
+            className="form-input"
+            value={date}
+            max={today}
+            onChange={e => setDate(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Time</label>
+          <input
+            type="time"
+            className="form-input"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+          />
+        </div>
+        <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} onClick={handleConfirm}>
+          <Play size={14} /> Start Logging
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('strength');
   const [starting, setStarting] = useState(null);
+  const [backfillTemplate, setBackfillTemplate] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,13 +73,18 @@ export default function Templates() {
     } catch (err) { console.error(err); }
   };
 
-  const handleStart = async (e, id) => {
-    e.stopPropagation();
-    setStarting(id);
+  const startWorkout = async (templateId, startedAt) => {
+    setStarting(templateId);
     try {
-      const res = await api.post('/workouts/start', { template_id: id });
+      const body = { template_id: templateId };
+      if (startedAt) body.started_at = startedAt;
+      const res = await api.post('/workouts/start', body);
       navigate(`/workout/${res.data.session.id}`, {
-        state: { session: res.data.session, exercises: res.data.exercises },
+        state: {
+          session: res.data.session,
+          exercises: res.data.exercises,
+          backfillDate: startedAt || null,
+        },
       });
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to start workout');
@@ -39,7 +92,12 @@ export default function Templates() {
     }
   };
 
-  // Pass the current tab type so TemplateEditor pre-selects it
+  const handleStart = (e, id) => { e.stopPropagation(); startWorkout(id, null); };
+  const handleBackfillConfirm = (iso) => {
+    setBackfillTemplate(null);
+    startWorkout(backfillTemplate.id, iso);
+  };
+
   const handleNew = () => navigate('/template/new', { state: { templateType: tab } });
 
   const filtered = templates.filter(t => (t.template_type || 'strength') === tab);
@@ -110,6 +168,14 @@ export default function Templates() {
                 >
                   <Play size={13} />{starting === t.id ? 'Starting...' : 'Start Workout'}
                 </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  title="Log past workout"
+                  onClick={e => { e.stopPropagation(); setBackfillTemplate(t); }}
+                  disabled={starting === t.id}
+                >
+                  <CalendarDays size={14} />
+                </button>
                 <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); navigate(`/template/${t.id}/edit`); }}>
                   <Pencil size={14} />
                 </button>
@@ -120,6 +186,14 @@ export default function Templates() {
             </div>
           ))}
         </div>
+      )}
+
+      {backfillTemplate && (
+        <BackfillModal
+          template={backfillTemplate}
+          onClose={() => setBackfillTemplate(null)}
+          onConfirm={handleBackfillConfirm}
+        />
       )}
     </div>
   );

@@ -157,6 +157,7 @@ export default function RunWorkout() {
   const [session, setSession] = useState(location.state?.session || null);
   const [exercises, setExercises] = useState(location.state?.exercises || []);
   const [loading, setLoading] = useState(!location.state);
+  const backfillDate = location.state?.backfillDate || null;
   const [lastSessionData, setLastSessionData] = useState({});
 
   const [elapsed, setElapsed] = useState(0);
@@ -408,7 +409,9 @@ export default function RunWorkout() {
   const handleFinish = async () => {
     setFinishing(true);
     try {
-      await api.post(`/workouts/${sessionId}/complete`, { notes: notes.trim() || null });
+      const completeBody = { notes: notes.trim() || null };
+      if (backfillDate) completeBody.completed_at = backfillDate;
+      await api.post(`/workouts/${sessionId}/complete`, completeBody);
       navigate('/history', { replace: true });
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save workout');
