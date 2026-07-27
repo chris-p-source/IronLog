@@ -120,7 +120,7 @@ router.post('/:sessionId/complete', async (req, res) => {
 router.get('/heatmap', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT DATE(completed_at AT TIME ZONE 'UTC') as day, COUNT(*) as count
+      `SELECT TO_CHAR(completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as day, COUNT(*) as count
        FROM workout_sessions
        WHERE user_id = $1
          AND completed_at IS NOT NULL
