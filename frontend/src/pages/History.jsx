@@ -72,14 +72,7 @@ function WorkoutHeatmap({ data }) {
   const TOP = 20; // room for month labels
   const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
-  // intensity: 0 = empty, 1-4 levels
-  const level = (count) => {
-    if (count === 0) return 0;
-    if (count === 1) return 1;
-    if (count === 2) return 2;
-    if (count <= 3) return 3;
-    return 4;
-  };
+  const level = (count) => count > 0 ? 1 : 0;
 
   const totalWorkouts = data.reduce((s, d) => s + Number(d.count), 0);
   const svgW = weeks.length * STEP;
@@ -130,13 +123,6 @@ function WorkoutHeatmap({ data }) {
             )}
           </svg>
         </div>
-      </div>
-      <div className="heatmap-legend">
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Less</span>
-        {[0, 1, 2, 3, 4].map(l => (
-          <svg key={l} width={CELL} height={CELL}><rect width={CELL} height={CELL} rx={2} className={`heatmap-cell heatmap-level-${l}`} /></svg>
-        ))}
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>More</span>
       </div>
     </div>
   );
