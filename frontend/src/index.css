@@ -1956,3 +1956,50 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 
 .badge-success { background: var(--success-dim); color: var(--success); }
 .badge-accent { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Workout Heatmap ── */
+.heatmap-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.heatmap-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.heatmap-subtitle {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+.heatmap-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-top: 10px;
+}
+.heatmap-cell { shape-rendering: crispEdges; }
+.heatmap-level-empty,
+.heatmap-level-0 { fill: var(--bg-elevated); }
+.heatmap-level-1 { fill: rgba(230, 48, 48, 0.25); }
+.heatmap-level-2 { fill: rgba(230, 48, 48, 0.50); }
+.heatmap-level-3 { fill: rgba(230, 48, 48, 0.75); }
+.heatmap-level-4 { fill: #e63030; }

@@ -117,6 +117,25 @@ router.post('/:sessionId/complete', async (req, res) => {
   }
 });
 
+router.get('/heatmap', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT DATE(completed_at AT TIME ZONE 'UTC') as day, COUNT(*) as count
+       FROM workout_sessions
+       WHERE user_id = $1
+         AND completed_at IS NOT NULL
+         AND completed_at >= NOW() - INTERVAL '53 weeks'
+       GROUP BY day
+       ORDER BY day`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/history', async (req, res) => {
   try {
     const { type } = req.query; // 'strength' | 'cardio' | undefined (all)
