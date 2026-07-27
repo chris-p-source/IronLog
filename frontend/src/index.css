@@ -2003,3 +2003,64 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .heatmap-level-2 { fill: rgba(230, 48, 48, 0.50); }
 .heatmap-level-3 { fill: rgba(230, 48, 48, 0.75); }
 .heatmap-level-4 { fill: #e63030; }
+
+/* ── History period filter ── */
+.period-filter {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.period-tabs {
+  display: flex;
+  gap: 6px;
+}
+.period-tab {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.period-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.period-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+.period-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.period-nav-btn:hover { background: var(--bg-elevated); }
+.period-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.period-nav-label {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.heatmap-dimmed { opacity: 0.2; }

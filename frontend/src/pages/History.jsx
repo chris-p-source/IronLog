@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, Dumbbell, Heart } from 'lucide-react';
+import { Clock, ChevronRight, Dumbbell, Heart, ChevronLeft } from 'lucide-react';
 import api from '../api';
 
 function formatDuration(seconds) {
@@ -23,14 +23,43 @@ function formatDate(d) {
   return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Returns { from, to, label } for a given period type and offset (0 = current, -1 = previous, etc.)
+function getPeriodRange(period, offset) {
+  const now = new Date();
+  let from, to, label;
+
+  if (period === 'week') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - start.getDay() + offset * 7); // Sunday-aligned
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    from = start;
+    to = end;
+    const opts = { day: 'numeric', month: 'short' };
+    label = `${start.toLocaleDateString('en-GB', opts)} – ${new Date(end.getTime() - 1).toLocaleDateString('en-GB', opts)}`;
+  } else if (period === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    to = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
+    label = from.toLocaleString('default', { month: 'long', year: 'numeric' });
+  } else if (period === 'year') {
+    from = new Date(now.getFullYear() + offset, 0, 1);
+    to = new Date(now.getFullYear() + offset + 1, 0, 1);
+    label = String(now.getFullYear() + offset);
+  }
+
+  return { from, to, label };
+}
+
 // Build a 53-week grid ending today
 function buildGrid(data) {
   const map = {};
-  for (const { day, count } of data) map[day] = Number(count);
+  for (const row of data) {
+    map[row.day] = { count: Number(row.count), templates: row.templates || [] };
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  // start = Sunday of the week 52 weeks ago
   const start = new Date(today);
   start.setDate(start.getDate() - 52 * 7 - start.getDay());
 
@@ -40,7 +69,8 @@ function buildGrid(data) {
     const week = [];
     for (let d = 0; d < 7; d++) {
       const iso = current.toISOString().slice(0, 10);
-      week.push({ date: iso, count: map[iso] || 0, future: current > today });
+      const entry = map[iso] || { count: 0, templates: [] };
+      week.push({ date: iso, ...entry, future: current > today });
       current.setDate(current.getDate() + 1);
     }
     weeks.push(week);
@@ -62,21 +92,25 @@ function getMonthLabels(weeks) {
   return labels;
 }
 
-function WorkoutHeatmap({ data }) {
+function WorkoutHeatmap({ data, from, to }) {
   const scrollRef = useRef(null);
   const weeks = buildGrid(data);
   const monthLabels = getMonthLabels(weeks);
   const CELL = 13;
   const GAP = 3;
   const STEP = CELL + GAP;
-  const TOP = 20; // room for month labels
+  const TOP = 20;
   const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
-
-  const level = (count) => count > 0 ? 1 : 0;
 
   const totalWorkouts = data.reduce((s, d) => s + Number(d.count), 0);
   const svgW = weeks.length * STEP;
   const svgH = TOP + 7 * STEP;
+
+  // Determine if a date is within the active filter range
+  const inRange = (iso) => {
+    if (!from) return true;
+    return iso >= from && iso < to;
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -92,7 +126,6 @@ function WorkoutHeatmap({ data }) {
       </div>
       <div className="heatmap-scroll" ref={scrollRef}>
         <div style={{ display: 'flex', gap: 6 }}>
-          {/* day-of-week labels */}
           <div style={{ display: 'flex', flexDirection: 'column', paddingTop: TOP + 1, gap: GAP }}>
             {DAY_LABELS.map((l, i) => (
               <div key={i} style={{ height: CELL, fontSize: 9, color: 'var(--text-muted)', lineHeight: `${CELL}px`, width: 22, textAlign: 'right', paddingRight: 4 }}>
@@ -101,25 +134,30 @@ function WorkoutHeatmap({ data }) {
             ))}
           </div>
           <svg width={svgW} height={svgH} style={{ display: 'block', flexShrink: 0 }}>
-            {/* month labels */}
             {monthLabels.map(({ col, label }) => (
               <text key={col} x={col * STEP} y={13} fontSize={10} fill="var(--text-muted)">{label}</text>
             ))}
-            {/* cells */}
             {weeks.map((week, wi) =>
-              week.map((cell, di) => (
-                <rect
-                  key={`${wi}-${di}`}
-                  x={wi * STEP}
-                  y={TOP + di * STEP}
-                  width={CELL}
-                  height={CELL}
-                  rx={2}
-                  className={`heatmap-cell heatmap-level-${cell.future ? 'empty' : level(cell.count)}`}
-                >
-                  <title>{cell.date}: {cell.count} workout{cell.count !== 1 ? 's' : ''}</title>
-                </rect>
-              ))
+              week.map((cell, di) => {
+                const active = !cell.future && cell.count > 0;
+                const dimmed = from && !inRange(cell.date);
+                const tooltipLines = cell.count > 0
+                  ? [cell.date, ...(cell.templates || []).map(t => `• ${t}`)].join('\n')
+                  : cell.date;
+                return (
+                  <rect
+                    key={`${wi}-${di}`}
+                    x={wi * STEP}
+                    y={TOP + di * STEP}
+                    width={CELL}
+                    height={CELL}
+                    rx={2}
+                    className={`heatmap-cell ${active ? 'heatmap-level-1' : 'heatmap-level-0'}${dimmed ? ' heatmap-dimmed' : ''}`}
+                  >
+                    <title>{tooltipLines}</title>
+                  </rect>
+                );
+              })
             )}
           </svg>
         </div>
@@ -133,7 +171,20 @@ export default function History() {
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('strength');
+  const [period, setPeriod] = useState('all'); // 'all' | 'week' | 'month' | 'year'
+  const [offset, setOffset] = useState(0);
   const navigate = useNavigate();
+
+  const range = useMemo(() => {
+    if (period === 'all') return { from: null, to: null, label: 'All Time' };
+    return getPeriodRange(period, offset);
+  }, [period, offset]);
+
+  // Reset offset when period changes
+  const handlePeriodChange = (p) => {
+    setPeriod(p);
+    setOffset(0);
+  };
 
   useEffect(() => {
     api.get('/workouts/heatmap').then(res => setHeatmapData(res.data)).catch(() => {});
@@ -141,12 +192,20 @@ export default function History() {
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/workouts/history?type=${tab}`)
+    const params = new URLSearchParams({ type: tab });
+    if (range.from) params.set('from', range.from.toISOString());
+    if (range.to) params.set('to', range.to.toISOString());
+    api.get(`/workouts/history?${params}`)
       .then(res => { setWorkouts(res.data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [tab]);
+  }, [tab, range]);
 
   const isCardio = tab === 'cardio';
+  const fromIso = range.from ? range.from.toISOString().slice(0, 10) : null;
+  const toIso = range.to ? range.to.toISOString().slice(0, 10) : null;
+
+  // Disable next when already at current period
+  const isCurrentPeriod = offset === 0;
 
   return (
     <div className="page">
@@ -154,8 +213,35 @@ export default function History() {
         <h1 className="page-title">Workout Log</h1>
       </div>
 
-      <WorkoutHeatmap data={heatmapData} />
+      <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />
 
+      {/* Period filter */}
+      <div className="period-filter">
+        <div className="period-tabs">
+          {['all', 'week', 'month', 'year'].map(p => (
+            <button
+              key={p}
+              className={`period-tab ${period === p ? 'active' : ''}`}
+              onClick={() => handlePeriodChange(p)}
+            >
+              {p.charAt(0).toUpperCase() + p.slice(1)}
+            </button>
+          ))}
+        </div>
+        {period !== 'all' && (
+          <div className="period-nav">
+            <button className="period-nav-btn" onClick={() => setOffset(o => o - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <span className="period-nav-label">{range.label}</span>
+            <button className="period-nav-btn" onClick={() => setOffset(o => o + 1)} disabled={isCurrentPeriod}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Workout type tabs */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
         <button
           className={`tab-btn ${tab === 'strength' ? 'active' : ''}`}
@@ -179,8 +265,8 @@ export default function History() {
           <div className="empty-state-icon">
             {isCardio ? <Heart size={52} /> : <Clock size={52} />}
           </div>
-          <h3>No {isCardio ? 'Cardio' : 'Strength'} History</h3>
-          <p>Complete a {isCardio ? 'cardio' : 'strength'} workout to see it here</p>
+          <h3>No {isCardio ? 'Cardio' : 'Strength'} Workouts</h3>
+          <p>{period === 'all' ? `Complete a ${isCardio ? 'cardio' : 'strength'} workout to see it here` : `None in ${range.label}`}</p>
         </div>
       ) : (
         workouts.map(w => (

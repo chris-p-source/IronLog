@@ -120,7 +120,9 @@ router.post('/:sessionId/complete', async (req, res) => {
 router.get('/heatmap', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT TO_CHAR(completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as day, COUNT(*) as count
+      `SELECT TO_CHAR(completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as day,
+              COUNT(*) as count,
+              ARRAY_AGG(template_name ORDER BY completed_at) as templates
        FROM workout_sessions
        WHERE user_id = $1
          AND completed_at IS NOT NULL
@@ -138,8 +140,10 @@ router.get('/heatmap', async (req, res) => {
 
 router.get('/history', async (req, res) => {
   try {
-    const { type } = req.query; // 'strength' | 'cardio' | undefined (all)
+    const { type, from, to } = req.query;
     const typeFilter = type ? `AND ws.template_type = '${type === 'cardio' ? 'cardio' : 'strength'}'` : '';
+    const fromFilter = from ? `AND ws.completed_at >= '${from}'::timestamptz` : '';
+    const toFilter = to ? `AND ws.completed_at < '${to}'::timestamptz` : '';
     const result = await db.query(
       `SELECT ws.*,
          COUNT(DISTINCT se.id) as exercise_count,
@@ -147,7 +151,7 @@ router.get('/history', async (req, res) => {
        FROM workout_sessions ws
        LEFT JOIN session_exercises se ON se.session_id = ws.id
        LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
-       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL ${typeFilter}
+       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL ${typeFilter} ${fromFilter} ${toFilter}
        GROUP BY ws.id
        ORDER BY ws.completed_at DESC`,
       [req.user.id]
