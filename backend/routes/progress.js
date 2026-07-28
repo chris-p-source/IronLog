@@ -221,18 +221,21 @@ router.get('/volume-trend', async (req, res) => {
   }
 });
 
-// Weekly muscle activity — exercise names + set counts for the last 7 days
+// Muscle fatigue — per-session set counts with timestamps for decay calculation
 router.get('/muscle-activity', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT se.exercise_name, COUNT(ss.id) as sets
+      `SELECT
+         se.exercise_name,
+         ws.completed_at,
+         COUNT(ss.id) AS sets
        FROM session_sets ss
        JOIN session_exercises se ON se.id = ss.session_exercise_id
        JOIN workout_sessions ws ON ws.id = se.session_id
        WHERE ws.user_id = $1
          AND ws.completed_at >= NOW() - INTERVAL '7 days'
          AND se.exercise_type = 'strength'
-       GROUP BY se.exercise_name`,
+       GROUP BY se.exercise_name, ws.completed_at`,
       [req.user.id]
     );
     res.json(result.rows);
