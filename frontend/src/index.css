@@ -2480,3 +2480,23 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .search-input::placeholder {
   color: var(--text-muted);
 }
+
+/* ── Inline edit inputs (WorkoutDetail edit mode) ── */
+.edit-inline-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-accent);
+  border-radius: 7px;
+  padding: 5px 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  font-weight: 600;
+  outline: none;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s;
+}
+.edit-inline-input:focus {
+  border-color: var(--accent);
+}

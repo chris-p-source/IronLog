@@ -119,6 +119,71 @@ router.post('/:sessionId/complete', async (req, res) => {
   }
 });
 
+// Update session-level fields (notes, duration, completed_at)
+router.put('/:sessionId', async (req, res) => {
+  const { notes, duration_seconds, completed_at } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE workout_sessions
+       SET notes = $3,
+           duration_seconds = COALESCE($4, duration_seconds),
+           completed_at = COALESCE($5::timestamptz, completed_at)
+       WHERE id = $1 AND user_id = $2 AND completed_at IS NOT NULL
+       RETURNING *`,
+      [req.params.sessionId, req.user.id, notes ?? null, duration_seconds ?? null, completed_at ?? null]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update a single strength set
+router.put('/:sessionId/sets/:setId', async (req, res) => {
+  const { reps_completed, weight_kg } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE session_sets ss
+       SET reps_completed = $3, weight_kg = $4
+       FROM session_exercises se
+       JOIN workout_sessions ws ON ws.id = se.session_id
+       WHERE ss.id = $1 AND se.id = ss.session_exercise_id
+         AND ws.id = $2::int AND ws.user_id = $5
+       RETURNING ss.*`,
+      [req.params.setId, req.params.sessionId, reps_completed, weight_kg ?? null, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Set not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update a cardio exercise (duration + metrics)
+router.put('/:sessionId/exercises/:exerciseId', async (req, res) => {
+  const { actual_duration_minutes, cardio_metrics } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE session_exercises se
+       SET actual_duration_minutes = COALESCE($3, actual_duration_minutes),
+           cardio_metrics = COALESCE($4::jsonb, cardio_metrics)
+       FROM workout_sessions ws
+       WHERE se.id = $1 AND se.session_id = ws.id
+         AND ws.id = $2::int AND ws.user_id = $5
+       RETURNING se.*`,
+      [req.params.exerciseId, req.params.sessionId, actual_duration_minutes ?? null, cardio_metrics ? JSON.stringify(cardio_metrics) : null, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Exercise not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/heatmap', async (req, res) => {
   try {
     const result = await db.query(
