@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, LogOut, ChevronRight, User, Download, Trophy, Scale, Dumbbell } from 'lucide-react';
+import { Lock, LogOut, ChevronRight, User, Download, Scale, Dumbbell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -140,12 +140,6 @@ export default function ProfileMenu({ onClose }) {
             <div className="profile-menu-row" onClick={() => { navigate(`/user/${user?.username}`); onClose(); }}>
               <div className="profile-menu-row-icon"><User size={18} /></div>
               <div className="profile-menu-row-title" style={{ flex: 1 }}>View My Profile</div>
-              <ChevronRight size={16} color="var(--text-muted)" />
-            </div>
-
-            <div className="profile-menu-row" onClick={() => { navigate('/personal-bests'); onClose(); }}>
-              <div className="profile-menu-row-icon" style={{ color: 'var(--warning)' }}><Trophy size={18} /></div>
-              <div className="profile-menu-row-title" style={{ flex: 1 }}>Personal Bests</div>
               <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 
