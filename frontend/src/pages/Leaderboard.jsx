@@ -75,7 +75,7 @@ function LeaderboardList({ rows, valueKey, unit, myId, onUserClick }) {
   );
 }
 
-export default function Leaderboard() {
+export default function Leaderboard({ hideHeader } = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -124,11 +124,13 @@ export default function Leaderboard() {
   const myRank = currentRows?.findIndex(r => r.id === user?.id);
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Leaderboard</h1>
-        <Trophy size={24} color="var(--accent)" />
-      </div>
+    <div className={hideHeader ? undefined : 'page'} style={hideHeader ? { padding: '12px 0' } : undefined}>
+      {!hideHeader && (
+        <div className="page-header">
+          <h1 className="page-title">Leaderboard</h1>
+          <Trophy size={24} color="var(--accent)" />
+        </div>
+      )}
 
       {/* Top-level section tabs */}
       <div className="tab-bar" style={{ marginBottom: 10 }}>

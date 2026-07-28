@@ -35,7 +35,7 @@ function Avatar({ username, avatarData, size = 38 }) {
   );
 }
 
-export default function Feed() {
+export default function Feed({ hideHeader } = {}) {
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -49,10 +49,12 @@ export default function Feed() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Feed</h1>
-      </div>
+    <div className={hideHeader ? undefined : 'page'} style={hideHeader ? { padding: '12px 0' } : undefined}>
+      {!hideHeader && (
+        <div className="page-header">
+          <h1 className="page-title">Feed</h1>
+        </div>
+      )}
 
       {feed.length === 0 ? (
         <div className="empty-state">

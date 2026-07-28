@@ -10,9 +10,8 @@ import History from './pages/History';
 import WorkoutDetail from './pages/WorkoutDetail';
 import Progress from './pages/Progress';
 import Bodyweight from './pages/Bodyweight';
-import Leaderboard from './pages/Leaderboard';
 import PersonalBests from './pages/PersonalBests';
-import Feed from './pages/Feed';
+import Social from './pages/Social';
 import MuscleMap from './pages/MuscleMap';
 import UserProfile from './pages/UserProfile';
 import BottomNav from './components/BottomNav';
@@ -47,9 +46,10 @@ export default function App() {
         <Route path="/history/:sessionId" element={<PrivateRoute><AppLayout><WorkoutDetail /></AppLayout></PrivateRoute>} />
         <Route path="/progress" element={<PrivateRoute><AppLayout><Progress /></AppLayout></PrivateRoute>} />
         <Route path="/bodyweight" element={<PrivateRoute><AppLayout><Bodyweight /></AppLayout></PrivateRoute>} />
-        <Route path="/leaderboard" element={<PrivateRoute><AppLayout><Leaderboard /></AppLayout></PrivateRoute>} />
         <Route path="/personal-bests" element={<PrivateRoute><AppLayout><PersonalBests /></AppLayout></PrivateRoute>} />
-        <Route path="/feed" element={<PrivateRoute><AppLayout><Feed /></AppLayout></PrivateRoute>} />
+        <Route path="/social" element={<PrivateRoute><AppLayout><Social /></AppLayout></PrivateRoute>} />
+        <Route path="/leaderboard" element={<Navigate to="/social" replace />} />
+        <Route path="/feed" element={<Navigate to="/social" replace />} />
         <Route path="/muscle-map" element={<PrivateRoute><AppLayout><MuscleMap /></AppLayout></PrivateRoute>} />
         <Route path="/user/:username" element={<PrivateRoute><AppLayout><UserProfile /></AppLayout></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

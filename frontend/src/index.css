@@ -2453,3 +2453,30 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
+
+/* ── Search bar ── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  transition: border-color 0.15s;
+}
+.search-bar:focus-within {
+  border-color: var(--border-accent);
+}
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+.search-input::placeholder {
+  color: var(--text-muted);
+}
