@@ -586,6 +586,18 @@ export default function RunWorkout() {
                           placeholder={lastSet?.weight_kg ? String(parseFloat(lastSet.weight_kg)) : '—'}
                         />
                       </div>
+                      {(() => {
+                        const w = Number(s.weight);
+                        const r = Number(s.reps);
+                        if (!w || !r) return null;
+                        const e1rm = Math.round(w * (1 + r / 30));
+                        return (
+                          <div className="e1rm-chip" title="Estimated 1 rep max (Epley)">
+                            <span className="e1rm-label">e1RM</span>
+                            <span className="e1rm-value">{e1rm}kg</span>
+                          </div>
+                        );
+                      })()}
                       <button
                         type="button"
                         className="plate-calc-btn"

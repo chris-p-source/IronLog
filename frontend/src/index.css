@@ -2325,3 +2325,33 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ── e1RM chip ── */
+.e1rm-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(124, 92, 252, 0.12);
+  border: 1px solid rgba(124, 92, 252, 0.3);
+  border-radius: 8px;
+  padding: 3px 7px;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+.e1rm-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #7c5cfc;
+  line-height: 1;
+}
+.e1rm-value {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
+  color: #a080ff;
+  line-height: 1.2;
+}
