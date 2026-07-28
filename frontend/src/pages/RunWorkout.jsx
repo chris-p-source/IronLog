@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2 } from 'lucide-react';
 import api from '../api';
 
 function urlBase64ToUint8Array(base64String) {
@@ -406,13 +406,37 @@ export default function RunWorkout() {
     }
   };
 
+  const [summary, setSummary] = useState(null);
+
   const handleFinish = async () => {
     setFinishing(true);
     try {
       const completeBody = { notes: notes.trim() || null };
       if (backfillDate) completeBody.completed_at = backfillDate;
       await api.post(`/workouts/${sessionId}/complete`, completeBody);
-      navigate('/history', { replace: true });
+
+      // Build summary data from in-memory state
+      const setsFlat = Object.entries(setData).flatMap(([exId, sets]) =>
+        Object.values(sets).filter(s => s.done).map(s => ({
+          weight: Number(s.weight) || 0,
+          reps: Number(s.reps) || 0,
+        }))
+      );
+      const totalVolume = setsFlat.reduce((a, s) => a + s.weight * s.reps, 0);
+      const totalSetsCompleted = setsFlat.length;
+      const prs = prCelebration ? [prCelebration] : [];
+
+      setSummary({
+        templateName: session.template_name,
+        duration: elapsed,
+        totalVolume,
+        totalSetsCompleted,
+        exerciseCount: exercises.length,
+        prs,
+        notes: notes.trim(),
+      });
+      setShowFinish(false);
+      setFinishing(false);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save workout');
       setFinishing(false);
@@ -432,6 +456,70 @@ export default function RunWorkout() {
     return (
       <div style={{ background: 'var(--bg-primary)', minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="loading">Loading workout...</div>
+      </div>
+    );
+  }
+
+  if (summary) {
+    return (
+      <div className="summary-page">
+        <div className="summary-glow" />
+        <div className="summary-content">
+          <div className="summary-icon"><Flame size={48} /></div>
+          <h1 className="summary-title">Workout Complete</h1>
+          <div className="summary-name">{summary.templateName}</div>
+
+          <div className="summary-stats">
+            <div className="summary-stat">
+              <Clock size={18} className="summary-stat-icon" />
+              <div className="summary-stat-value">{formatTime(summary.duration)}</div>
+              <div className="summary-stat-label">Duration</div>
+            </div>
+            <div className="summary-stat">
+              <Dumbbell size={18} className="summary-stat-icon" />
+              <div className="summary-stat-value">{summary.totalSetsCompleted}</div>
+              <div className="summary-stat-label">Sets Done</div>
+            </div>
+            <div className="summary-stat">
+              <BarChart2 size={18} className="summary-stat-icon" />
+              <div className="summary-stat-value">
+                {summary.totalVolume >= 1000
+                  ? `${(summary.totalVolume / 1000).toFixed(1)}t`
+                  : `${Math.round(summary.totalVolume)}kg`}
+              </div>
+              <div className="summary-stat-label">Volume</div>
+            </div>
+          </div>
+
+          {summary.prs.length > 0 && (
+            <div className="summary-prs">
+              <Trophy size={16} style={{ color: 'var(--warning)' }} />
+              <span>New PR{summary.prs.length > 1 ? 's' : ''}: {summary.prs.join(', ')}</span>
+            </div>
+          )}
+
+          {summary.notes && (
+            <div className="summary-notes">
+              <div className="summary-notes-label">Notes</div>
+              <div className="summary-notes-text">{summary.notes}</div>
+            </div>
+          )}
+
+          <button
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', marginTop: 32 }}
+            onClick={() => navigate('/history', { replace: true })}
+          >
+            Done
+          </button>
+          <button
+            className="btn btn-ghost"
+            style={{ width: '100%', marginTop: 8 }}
+            onClick={() => navigate('/', { replace: true })}
+          >
+            Back to Templates
+          </button>
+        </div>
       </div>
     );
   }
