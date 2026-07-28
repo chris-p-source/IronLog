@@ -191,6 +191,36 @@ router.get('/exercise/:name', async (req, res) => {
   }
 });
 
+// Session-level volume trend — total kg·reps per completed session
+router.get('/volume-trend', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const typeFilter = type ? `AND ws.template_type = '${type === 'cardio' ? 'cardio' : 'strength'}'` : '';
+    const result = await db.query(
+      `SELECT
+         ws.id                                                        AS session_id,
+         ws.template_name,
+         ws.completed_at,
+         ws.duration_seconds,
+         COALESCE(SUM(ss.weight_kg * ss.reps_completed), 0)          AS total_volume,
+         COUNT(DISTINCT se.exercise_name)                             AS exercise_count,
+         COUNT(ss.id)                                                 AS sets_completed
+       FROM workout_sessions ws
+       LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'strength'
+       LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id AND ss.weight_kg > 0
+       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL ${typeFilter}
+       GROUP BY ws.id
+       ORDER BY ws.completed_at ASC
+       LIMIT 60`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // All-time PRs for every strength exercise the user has logged
 router.get('/personal-bests', async (req, res) => {
   try {

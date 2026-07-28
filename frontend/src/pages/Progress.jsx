@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Dumbbell, Heart } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar,
+  ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine,
 } from 'recharts';
 import api from '../api';
 
@@ -66,12 +66,33 @@ function ChartCard({ title, children }) {
   );
 }
 
+const VolumeTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const v = payload[0]?.value;
+  return (
+    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-accent)', borderRadius: 10, padding: '10px 14px' }}>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+      <div style={{ color: '#e63030', fontWeight: 800, fontFamily: 'var(--font-display)', fontSize: 16 }}>
+        {v >= 1000 ? `${(v / 1000).toFixed(1)}t` : `${Math.round(v)}kg`}
+        <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: 'var(--text-secondary)' }}>volume</span>
+      </div>
+    </div>
+  );
+};
+
 export default function Progress() {
   const [tab, setTab] = useState('strength');
   const [exercises, setExercises] = useState([]);
   const [selected, setSelected] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [volumeTrend, setVolumeTrend] = useState([]);
+
+  useEffect(() => {
+    api.get('/progress/volume-trend?type=strength')
+      .then(res => setVolumeTrend(res.data))
+      .catch(() => {});
+  }, []);
 
   // Reload exercise list when tab changes
   useEffect(() => {
@@ -145,6 +166,56 @@ export default function Progress() {
           <Heart size={13} /> Cardio
         </button>
       </div>
+
+      {/* ── Volume trend overview ── */}
+      {volumeTrend.length > 1 && tab === 'strength' && (() => {
+        const avgVol = volumeTrend.reduce((a, s) => a + parseFloat(s.total_volume), 0) / volumeTrend.length;
+        const chartData = volumeTrend.map(s => ({
+          date: shortDate(s.completed_at),
+          volume: Math.round(parseFloat(s.total_volume)),
+          name: s.template_name,
+        }));
+        const maxVol = Math.max(...chartData.map(d => d.volume));
+        return (
+          <ChartCard title="Session Volume Trend (kg)">
+            <div className="stat-grid" style={{ marginBottom: 12 }}>
+              <div className="stat-box">
+                <div className="stat-box-value">
+                  {maxVol >= 1000 ? `${(maxVol / 1000).toFixed(1)}t` : `${maxVol}kg`}
+                </div>
+                <div className="stat-box-label">Best Session</div>
+              </div>
+              <div className="stat-box">
+                <div className="stat-box-value">
+                  {avgVol >= 1000 ? `${(avgVol / 1000).toFixed(1)}t` : `${Math.round(avgVol)}kg`}
+                </div>
+                <div className="stat-box-label">Avg Session</div>
+              </div>
+              <div className="stat-box">
+                <div className="stat-box-value">{volumeTrend.length}</div>
+                <div className="stat-box-label">Sessions</div>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: -8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1c" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}t` : v} />
+                <Tooltip content={<VolumeTooltip />} />
+                <ReferenceLine y={avgVol} stroke="#3a3a3a" strokeDasharray="4 4" />
+                <Bar dataKey="volume" radius={[3, 3, 0, 0]} maxBarSize={28}>
+                  {chartData.map((d, i) => (
+                    <Cell key={i} fill={d.volume >= avgVol ? '#e63030' : '#5a1a1a'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4 }}>
+              Dashed line = average · Red bars = above average
+            </div>
+          </ChartCard>
+        );
+      })()}
 
       {exercises.length === 0 ? (
         <div className="empty-state">
