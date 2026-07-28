@@ -113,7 +113,7 @@ function BodyView({ title, regions, normalisedScores }) {
   );
 }
 
-export default function MuscleMap() {
+export default function MuscleMap({ hideHeader } = {}) {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -137,11 +137,13 @@ export default function MuscleMap() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Recovery</h1>
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Last 7 days</span>
-      </div>
+    <div className={hideHeader ? undefined : 'page'} style={hideHeader ? { padding: '12px 0' } : undefined}>
+      {!hideHeader && (
+        <div className="page-header">
+          <h1 className="page-title">Recovery</h1>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Last 7 days</span>
+        </div>
+      )}
 
       <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
         Estimated fatigue based on training recency and volume. Muscles fade toward green as they recover (~48h half-life).

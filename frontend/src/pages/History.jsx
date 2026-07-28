@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, Dumbbell, Heart, ChevronLeft } from 'lucide-react';
+import { Clock, ChevronRight, Dumbbell, Heart, ChevronLeft, Activity } from 'lucide-react';
+import MuscleMap from './MuscleMap';
 import api from '../api';
 
 function formatDuration(seconds) {
@@ -287,10 +288,10 @@ export default function History() {
         <h1 className="page-title">Workout Log</h1>
       </div>
 
-      <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />
+      {tab !== 'recovery' && <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />}
 
       {/* Period filter */}
-      <div className="period-filter">
+      {tab !== 'recovery' && <div className="period-filter">
         <div className="period-tabs">
           {['all', 'week', 'month', 'year'].map(p => (
             <button
@@ -330,9 +331,18 @@ export default function History() {
         >
           <Heart size={13} /> Cardio
         </button>
+        <button
+          className={`tab-btn ${tab === 'recovery' ? 'active' : ''}`}
+          onClick={() => setTab('recovery')}
+          style={tab === 'recovery' ? { background: '#22c55e22', color: '#22c55e', borderColor: '#22c55e44' } : {}}
+        >
+          <Activity size={13} /> Recovery
+        </button>
       </div>
 
-      {loading ? (
+      {tab === 'recovery' && <MuscleMap hideHeader />}
+
+      {tab !== 'recovery' && (loading ? (
         <div className="loading">Loading...</div>
       ) : workouts.length === 0 ? (
         <div className="empty-state">
@@ -383,7 +393,7 @@ export default function History() {
             ))}
           </div>
         ))
-      )}
+      ))}
     </div>
   );
 }
