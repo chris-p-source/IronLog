@@ -31,7 +31,7 @@ function getPeriodRange(period, offset) {
   if (period === 'week') {
     const start = new Date(now);
     start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - start.getDay() + offset * 7); // Sunday-aligned
+    start.setDate(start.getDate() - dowMon(start) + offset * 7); // Monday-aligned
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
     from = start;
@@ -51,17 +51,26 @@ function getPeriodRange(period, offset) {
   return { from, to, label };
 }
 
-// Build a 53-week grid ending today
+// Monday-first: Mon=0 … Sun=6
+function dowMon(date) { return (date.getDay() + 6) % 7; }
+
+// Build a 53-week grid, Mon→Sun, ending today
 function buildGrid(data) {
   const map = {};
   for (const row of data) {
-    map[row.day] = { count: Number(row.count), templates: row.templates || [] };
+    map[row.day] = {
+      count: Number(row.count),
+      strengthCount: Number(row.strength_count || 0),
+      cardioCount: Number(row.cardio_count || 0),
+      templates: row.templates || [],
+    };
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // rewind to the Monday that starts the grid (52 full weeks back)
   const start = new Date(today);
-  start.setDate(start.getDate() - 52 * 7 - start.getDay());
+  start.setDate(start.getDate() - 52 * 7 - dowMon(today));
 
   const weeks = [];
   let current = new Date(start);
@@ -69,7 +78,7 @@ function buildGrid(data) {
     const week = [];
     for (let d = 0; d < 7; d++) {
       const iso = current.toISOString().slice(0, 10);
-      const entry = map[iso] || { count: 0, templates: [] };
+      const entry = map[iso] || { count: 0, strengthCount: 0, cardioCount: 0, templates: [] };
       week.push({ date: iso, ...entry, future: current > today });
       current.setDate(current.getDate() + 1);
     }
@@ -92,31 +101,50 @@ function getMonthLabels(weeks) {
   return labels;
 }
 
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function cellColor(cell) {
+  if (cell.future || cell.count === 0) return null; // use CSS class
+  if (cell.strengthCount > 0 && cell.cardioCount > 0) return '#e63030'; // mixed → strength wins
+  if (cell.strengthCount > 0) return '#e63030';
+  return '#ff6b00'; // cardio only
+}
+
 function WorkoutHeatmap({ data, from, to }) {
   const scrollRef = useRef(null);
+  const [tooltip, setTooltip] = useState(null); // { cell, x, y }
+
   const weeks = buildGrid(data);
   const monthLabels = getMonthLabels(weeks);
-  const CELL = 13;
+  const CELL = 14;
   const GAP = 3;
   const STEP = CELL + GAP;
   const TOP = 20;
-  const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  const LABEL_W = 28;
 
   const totalWorkouts = data.reduce((s, d) => s + Number(d.count), 0);
   const svgW = weeks.length * STEP;
   const svgH = TOP + 7 * STEP;
 
-  // Determine if a date is within the active filter range
-  const inRange = (iso) => {
-    if (!from) return true;
-    return iso >= from && iso < to;
-  };
+  const inRange = (iso) => !from || (iso >= from && iso < to);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-    }
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
   }, [data.length]);
+
+  // Close tooltip on outside tap
+  useEffect(() => {
+    if (!tooltip) return;
+    const close = () => setTooltip(null);
+    document.addEventListener('touchstart', close, { passive: true });
+    return () => document.removeEventListener('touchstart', close);
+  }, [tooltip]);
+
+  const handleCellTap = (e, cell, wi, di) => {
+    e.stopPropagation();
+    if (cell.future) return;
+    setTooltip(t => (t?.cell.date === cell.date ? null : { cell, wi, di }));
+  };
 
   return (
     <div className="heatmap-card">
@@ -125,41 +153,60 @@ function WorkoutHeatmap({ data, from, to }) {
         <span className="heatmap-subtitle">{totalWorkouts} sessions in the last year</span>
       </div>
       <div className="heatmap-scroll" ref={scrollRef}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', paddingTop: TOP + 1, gap: GAP }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {/* Day labels — Mon at top */}
+          <div style={{ display: 'flex', flexDirection: 'column', paddingTop: TOP + 1, gap: GAP, flexShrink: 0 }}>
             {DAY_LABELS.map((l, i) => (
-              <div key={i} style={{ height: CELL, fontSize: 9, color: 'var(--text-muted)', lineHeight: `${CELL}px`, width: 22, textAlign: 'right', paddingRight: 4 }}>
+              <div key={i} style={{ height: CELL, fontSize: 9, color: 'var(--text-secondary)', lineHeight: `${CELL}px`, width: LABEL_W, textAlign: 'right', paddingRight: 4 }}>
                 {l}
               </div>
             ))}
           </div>
-          <svg width={svgW} height={svgH} style={{ display: 'block', flexShrink: 0 }}>
-            {monthLabels.map(({ col, label }) => (
-              <text key={col} x={col * STEP} y={13} fontSize={10} fill="var(--text-muted)">{label}</text>
-            ))}
-            {weeks.map((week, wi) =>
-              week.map((cell, di) => {
-                const active = !cell.future && cell.count > 0;
-                const dimmed = from && !inRange(cell.date);
-                const tooltipLines = cell.count > 0
-                  ? [cell.date, ...(cell.templates || []).map(t => `• ${t}`)].join('\n')
-                  : cell.date;
-                return (
-                  <rect
-                    key={`${wi}-${di}`}
-                    x={wi * STEP}
-                    y={TOP + di * STEP}
-                    width={CELL}
-                    height={CELL}
-                    rx={2}
-                    className={`heatmap-cell ${active ? 'heatmap-level-1' : 'heatmap-level-0'}${dimmed ? ' heatmap-dimmed' : ''}`}
-                  >
-                    <title>{tooltipLines}</title>
-                  </rect>
-                );
-              })
+          <div style={{ position: 'relative' }}>
+            <svg width={svgW} height={svgH} style={{ display: 'block', flexShrink: 0 }}>
+              {monthLabels.map(({ col, label }) => (
+                <text key={col} x={col * STEP} y={13} fontSize={10} fill="var(--text-muted)">{label}</text>
+              ))}
+              {weeks.map((week, wi) =>
+                week.map((cell, di) => {
+                  const color = cellColor(cell);
+                  const dimmed = from && !inRange(cell.date);
+                  const isSelected = tooltip?.cell.date === cell.date;
+                  return (
+                    <rect
+                      key={`${wi}-${di}`}
+                      x={wi * STEP}
+                      y={TOP + di * STEP}
+                      width={CELL}
+                      height={CELL}
+                      rx={2}
+                      fill={color || 'var(--bg-elevated)'}
+                      opacity={dimmed ? 0.2 : isSelected ? 0.7 : 1}
+                      style={{ cursor: cell.count > 0 ? 'pointer' : 'default' }}
+                      onMouseEnter={() => cell.count > 0 && setTooltip({ cell, wi, di })}
+                      onMouseLeave={() => setTooltip(null)}
+                      onTouchStart={e => handleCellTap(e, cell, wi, di)}
+                    />
+                  );
+                })
+              )}
+            </svg>
+            {/* Floating tooltip */}
+            {tooltip && (
+              <div
+                className="heatmap-tooltip"
+                style={{
+                  left: Math.min(tooltip.wi * STEP, svgW - 160),
+                  top: tooltip.di * STEP + TOP - 8,
+                }}
+              >
+                <div className="heatmap-tooltip-date">{new Date(tooltip.cell.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                {(tooltip.cell.templates || []).map((t, i) => (
+                  <div key={i} className="heatmap-tooltip-item">• {t}</div>
+                ))}
+              </div>
             )}
-          </svg>
+          </div>
         </div>
       </div>
     </div>

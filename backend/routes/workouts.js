@@ -124,6 +124,8 @@ router.get('/heatmap', async (req, res) => {
     const result = await db.query(
       `SELECT TO_CHAR(completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as day,
               COUNT(*) as count,
+              COUNT(*) FILTER (WHERE template_type = 'strength') as strength_count,
+              COUNT(*) FILTER (WHERE template_type = 'cardio') as cardio_count,
               ARRAY_AGG(template_name ORDER BY completed_at) as templates
        FROM workout_sessions
        WHERE user_id = $1
