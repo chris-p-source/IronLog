@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-export default function Bodyweight() {
+export default function Bodyweight({ hideHeader } = {}) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [weight, setWeight] = useState('');
@@ -60,10 +60,12 @@ export default function Bodyweight() {
   const latest = entries[entries.length - 1];
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Bodyweight</h1>
-      </div>
+    <div className={hideHeader ? undefined : 'page'} style={hideHeader ? { padding: '12px 0' } : undefined}>
+      {!hideHeader && (
+        <div className="page-header">
+          <h1 className="page-title">Bodyweight</h1>
+        </div>
+      )}
 
       <div className="form-group">
         <label className="form-label">Log Today's Weight (kg)</label>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, Clock, TrendingUp, Users, Scale } from 'lucide-react';
+import { Dumbbell, Clock, TrendingUp, Users, Activity } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -38,11 +38,11 @@ export default function BottomNav() {
         <span>Social</span>
       </button>
       <button
-        className={`nav-item ${path === '/bodyweight' ? 'active' : ''}`}
-        onClick={() => navigate('/bodyweight')}
+        className={`nav-item ${path === '/recovery' ? 'active' : ''}`}
+        onClick={() => navigate('/recovery')}
       >
-        <Scale />
-        <span>Weight</span>
+        <Activity />
+        <span>Recovery</span>
       </button>
     </nav>
   );

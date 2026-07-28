@@ -45,7 +45,8 @@ export default function App() {
         <Route path="/history" element={<PrivateRoute><AppLayout><History /></AppLayout></PrivateRoute>} />
         <Route path="/history/:sessionId" element={<PrivateRoute><AppLayout><WorkoutDetail /></AppLayout></PrivateRoute>} />
         <Route path="/progress" element={<PrivateRoute><AppLayout><Progress /></AppLayout></PrivateRoute>} />
-        <Route path="/bodyweight" element={<PrivateRoute><AppLayout><Bodyweight /></AppLayout></PrivateRoute>} />
+        <Route path="/bodyweight" element={<Navigate to="/progress" replace />} />
+        <Route path="/recovery" element={<PrivateRoute><AppLayout><MuscleMap /></AppLayout></PrivateRoute>} />
         <Route path="/personal-bests" element={<PrivateRoute><AppLayout><PersonalBests /></AppLayout></PrivateRoute>} />
         <Route path="/social" element={<PrivateRoute><AppLayout><Social /></AppLayout></PrivateRoute>} />
         <Route path="/leaderboard" element={<Navigate to="/social" replace />} />

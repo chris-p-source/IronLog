@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Dumbbell, Heart, Trophy, ChevronRight } from 'lucide-react';
+import { TrendingUp, Dumbbell, Heart, Trophy, ChevronRight, Scale } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Bodyweight from './Bodyweight';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine,
@@ -156,7 +157,7 @@ export default function Progress() {
         <h1 className="page-title">Progress</h1>
       </div>
 
-      {/* Strength / Cardio tabs */}
+      {/* Strength / Cardio / Weight tabs */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
         <button
           className={`tab-btn ${tab === 'strength' ? 'active' : ''}`}
@@ -171,10 +172,18 @@ export default function Progress() {
         >
           <Heart size={13} /> Cardio
         </button>
+        <button
+          className={`tab-btn ${tab === 'weight' ? 'active' : ''}`}
+          onClick={() => setTab('weight')}
+        >
+          <Scale size={13} /> Weight
+        </button>
       </div>
 
+      {tab === 'weight' && <Bodyweight hideHeader />}
+
       {/* ── Personal Bests snippet (strength tab only) ── */}
-      {tab === 'strength' && personalBests.length > 0 && (
+      {tab !== 'weight' && tab === 'strength' && personalBests.length > 0 && (
         <div className="chart-container" style={{ marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate('/personal-bests')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="chart-title" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -204,7 +213,7 @@ export default function Progress() {
         </div>
       )}
 
-      {exercises.length === 0 ? (
+      {tab !== 'weight' && (exercises.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
             {tab === 'cardio' ? <Heart size={52} /> : <TrendingUp size={52} />}
@@ -418,7 +427,7 @@ export default function Progress() {
             </>
           )}
         </>
-      )}
+      ))}
 
       {/* ── Volume trend — bottom of page, strength tab only ── */}
       {volumeTrend.length > 1 && tab === 'strength' && (() => {
