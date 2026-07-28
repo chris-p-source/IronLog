@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, Clock, TrendingUp, Users, Activity } from 'lucide-react';
+import { Dumbbell, Clock, TrendingUp, Activity, Users } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -31,18 +31,18 @@ export default function BottomNav() {
         <span>Progress</span>
       </button>
       <button
-        className={`nav-item ${path === '/social' || path === '/leaderboard' || path === '/feed' ? 'active' : ''}`}
-        onClick={() => navigate('/social')}
-      >
-        <Users />
-        <span>Social</span>
-      </button>
-      <button
         className={`nav-item ${path === '/recovery' ? 'active' : ''}`}
         onClick={() => navigate('/recovery')}
       >
         <Activity />
         <span>Recovery</span>
+      </button>
+      <button
+        className={`nav-item ${path === '/social' || path === '/leaderboard' || path === '/feed' ? 'active' : ''}`}
+        onClick={() => navigate('/social')}
+      >
+        <Users />
+        <span>Social</span>
       </button>
     </nav>
   );

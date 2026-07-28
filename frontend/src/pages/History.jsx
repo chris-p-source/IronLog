@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, Dumbbell, Heart, ChevronLeft, Activity } from 'lucide-react';
-import MuscleMap from './MuscleMap';
+import { Clock, ChevronRight, Dumbbell, Heart, ChevronLeft } from 'lucide-react';
 import api from '../api';
 
 function formatDuration(seconds) {
@@ -288,35 +287,33 @@ export default function History() {
         <h1 className="page-title">Workout Log</h1>
       </div>
 
-      {tab !== 'recovery' && <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />}
+      <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />
 
       {/* Period filter */}
-      {tab !== 'recovery' && (
-        <div className="period-filter">
-          <div className="period-tabs">
-            {['all', 'week', 'month', 'year'].map(p => (
-              <button
-                key={p}
-                className={`period-tab ${period === p ? 'active' : ''}`}
-                onClick={() => handlePeriodChange(p)}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-          </div>
-          {period !== 'all' && (
-            <div className="period-nav">
-              <button className="period-nav-btn" onClick={() => setOffset(o => o - 1)}>
-                <ChevronLeft size={16} />
-              </button>
-              <span className="period-nav-label">{range.label}</span>
-              <button className="period-nav-btn" onClick={() => setOffset(o => o + 1)} disabled={isCurrentPeriod}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+      <div className="period-filter">
+        <div className="period-tabs">
+          {['all', 'week', 'month', 'year'].map(p => (
+            <button
+              key={p}
+              className={`period-tab ${period === p ? 'active' : ''}`}
+              onClick={() => handlePeriodChange(p)}
+            >
+              {p.charAt(0).toUpperCase() + p.slice(1)}
+            </button>
+          ))}
         </div>
-      )}
+        {period !== 'all' && (
+          <div className="period-nav">
+            <button className="period-nav-btn" onClick={() => setOffset(o => o - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <span className="period-nav-label">{range.label}</span>
+            <button className="period-nav-btn" onClick={() => setOffset(o => o + 1)} disabled={isCurrentPeriod}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Workout type tabs */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
@@ -333,18 +330,9 @@ export default function History() {
         >
           <Heart size={13} /> Cardio
         </button>
-        <button
-          className={`tab-btn ${tab === 'recovery' ? 'active' : ''}`}
-          onClick={() => setTab('recovery')}
-          style={tab === 'recovery' ? { background: '#22c55e22', color: '#22c55e', borderColor: '#22c55e44' } : {}}
-        >
-          <Activity size={13} /> Recovery
-        </button>
       </div>
 
-      {tab === 'recovery' && <MuscleMap hideHeader />}
-
-      {tab !== 'recovery' && (loading ? (
+      {loading ? (
         <div className="loading">Loading...</div>
       ) : workouts.length === 0 ? (
         <div className="empty-state">
@@ -395,7 +383,7 @@ export default function History() {
             ))}
           </div>
         ))
-      ))}
+      )}
     </div>
   );
 }
