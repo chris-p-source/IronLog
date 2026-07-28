@@ -11,7 +11,8 @@ function shortDate(d) {
 
 function relativeDate(d) {
   if (!d) return '—';
-  const days = Math.floor((Date.now() - new Date(d)) / 86400000);
+  const toMidnight = (date) => { const c = new Date(date); c.setHours(0, 0, 0, 0); return c; };
+  const days = Math.round((toMidnight(new Date()) - toMidnight(new Date(d))) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days}d ago`;
