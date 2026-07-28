@@ -76,6 +76,11 @@ function getPeriodRange(period, offset) {
 // Monday-first: Mon=0 … Sun=6
 function dowMon(date) { return (date.getDay() + 6) % 7; }
 
+// Use local date parts to avoid UTC-offset shifting the day boundary
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Build a 53-week grid, Mon→Sun, ending today
 function buildGrid(data) {
   const map = {};
@@ -99,7 +104,7 @@ function buildGrid(data) {
   while (current <= today) {
     const week = [];
     for (let d = 0; d < 7; d++) {
-      const iso = current.toISOString().slice(0, 10);
+      const iso = localISO(current);
       const entry = map[iso] || { count: 0, strengthCount: 0, cardioCount: 0, templates: [] };
       week.push({ date: iso, ...entry, future: current > today });
       current.setDate(current.getDate() + 1);
