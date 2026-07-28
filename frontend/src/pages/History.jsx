@@ -291,30 +291,32 @@ export default function History() {
       {tab !== 'recovery' && <WorkoutHeatmap data={heatmapData} from={fromIso} to={toIso} />}
 
       {/* Period filter */}
-      {tab !== 'recovery' && <div className="period-filter">
-        <div className="period-tabs">
-          {['all', 'week', 'month', 'year'].map(p => (
-            <button
-              key={p}
-              className={`period-tab ${period === p ? 'active' : ''}`}
-              onClick={() => handlePeriodChange(p)}
-            >
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </button>
-          ))}
-        </div>
-        {period !== 'all' && (
-          <div className="period-nav">
-            <button className="period-nav-btn" onClick={() => setOffset(o => o - 1)}>
-              <ChevronLeft size={16} />
-            </button>
-            <span className="period-nav-label">{range.label}</span>
-            <button className="period-nav-btn" onClick={() => setOffset(o => o + 1)} disabled={isCurrentPeriod}>
-              <ChevronRight size={16} />
-            </button>
+      {tab !== 'recovery' && (
+        <div className="period-filter">
+          <div className="period-tabs">
+            {['all', 'week', 'month', 'year'].map(p => (
+              <button
+                key={p}
+                className={`period-tab ${period === p ? 'active' : ''}`}
+                onClick={() => handlePeriodChange(p)}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+          {period !== 'all' && (
+            <div className="period-nav">
+              <button className="period-nav-btn" onClick={() => setOffset(o => o - 1)}>
+                <ChevronLeft size={16} />
+              </button>
+              <span className="period-nav-label">{range.label}</span>
+              <button className="period-nav-btn" onClick={() => setOffset(o => o + 1)} disabled={isCurrentPeriod}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Workout type tabs */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
