@@ -13,6 +13,28 @@ function formatDuration(seconds) {
   return `${s}s`;
 }
 
+function groupByDay(workouts) {
+  const groups = [];
+  const seen = {};
+  for (const w of workouts) {
+    const date = new Date(w.completed_at);
+    const iso = date.toISOString().slice(0, 10);
+    if (!seen[iso]) {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      let dayLabel;
+      if (iso === today.toISOString().slice(0, 10)) dayLabel = 'Today';
+      else if (iso === yesterday.toISOString().slice(0, 10)) dayLabel = 'Yesterday';
+      else dayLabel = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+      seen[iso] = { dayLabel, workouts: [] };
+      groups.push(seen[iso]);
+    }
+    seen[iso].workouts.push(w);
+  }
+  return groups;
+}
+
 function formatDate(d) {
   const date = new Date(d);
   const today = new Date();
@@ -316,39 +338,44 @@ export default function History() {
           <p>{period === 'all' ? `Complete a ${isCardio ? 'cardio' : 'strength'} workout to see it here` : `None in ${range.label}`}</p>
         </div>
       ) : (
-        workouts.map(w => (
-          <div
-            key={w.id}
-            className={`history-item ${isCardio ? 'history-item-cardio' : ''}`}
-            onClick={() => navigate(`/history/${w.id}`)}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div className="history-date">{formatDate(w.completed_at)}</div>
-                <div className="history-workout-name">{w.template_name}</div>
-              </div>
-              <ChevronRight size={18} color="var(--text-muted)" style={{ marginTop: 4 }} />
-            </div>
-            <div className="history-stats">
-              <div>
-                <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
-                  {formatDuration(w.duration_seconds)}
+        groupByDay(workouts).map(({ dayLabel, workouts: dayWorkouts }) => (
+          <div key={dayLabel} className="history-day-group">
+            <div className="history-day-label">{dayLabel}</div>
+            {dayWorkouts.map(w => (
+              <div
+                key={w.id}
+                className={`history-item ${isCardio ? 'history-item-cardio' : ''}`}
+                onClick={() => navigate(`/history/${w.id}`)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="history-workout-name">{w.template_name}</div>
+                    <div className="history-time">{new Date(w.completed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
+                  <ChevronRight size={18} color="var(--text-muted)" style={{ marginTop: 4 }} />
                 </div>
-                <div className="history-stat-label">Duration</div>
-              </div>
-              <div>
-                <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
-                  {w.exercise_count}
+                <div className="history-stats">
+                  <div>
+                    <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
+                      {formatDuration(w.duration_seconds)}
+                    </div>
+                    <div className="history-stat-label">Duration</div>
+                  </div>
+                  <div>
+                    <div className="history-stat-value" style={isCardio ? { color: 'var(--accent-secondary)' } : {}}>
+                      {w.exercise_count}
+                    </div>
+                    <div className="history-stat-label">Exercises</div>
+                  </div>
+                  {!isCardio && (
+                    <div>
+                      <div className="history-stat-value">{w.total_sets_completed}</div>
+                      <div className="history-stat-label">Sets Done</div>
+                    </div>
+                  )}
                 </div>
-                <div className="history-stat-label">Exercises</div>
               </div>
-              {!isCardio && (
-                <div>
-                  <div className="history-stat-value">{w.total_sets_completed}</div>
-                  <div className="history-stat-label">Sets Done</div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         ))
       )}
