@@ -131,6 +131,46 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.post('/:id/duplicate', async (req, res) => {
+  const client = await db.connect();
+  try {
+    const src = await client.query(
+      'SELECT * FROM workout_templates WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (src.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const t = src.rows[0];
+    const copy = await client.query(
+      `INSERT INTO workout_templates (user_id, name, template_type)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [req.user.id, `${t.name} (Copy)`, t.template_type]
+    );
+    const exercises = await client.query(
+      'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
+      [t.id]
+    );
+    for (const ex of exercises.rows) {
+      await client.query(
+        `INSERT INTO template_exercises
+           (template_id, name, exercise_type, sets, reps, planned_duration_minutes, rest_seconds, base_weight_kg, order_index)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [copy.rows[0].id, ex.name, ex.exercise_type, ex.sets, ex.reps,
+         ex.planned_duration_minutes, ex.rest_seconds, ex.base_weight_kg, ex.order_index]
+      );
+    }
+    const newExercises = await client.query(
+      'SELECT * FROM template_exercises WHERE template_id = $1 ORDER BY order_index',
+      [copy.rows[0].id]
+    );
+    res.json({ ...copy.rows[0], exercises: newExercises.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const check = await db.query(

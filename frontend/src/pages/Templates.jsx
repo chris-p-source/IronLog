@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Pencil, Trash2, Dumbbell, Heart, CalendarDays, X } from 'lucide-react';
+import { Plus, Play, Pencil, Trash2, Dumbbell, Heart, CalendarDays, X, Copy } from 'lucide-react';
 import api from '../api';
 
 function BackfillModal({ template, onClose, onConfirm }) {
@@ -93,6 +93,16 @@ export default function Templates() {
   };
 
   const handleStart = (e, id) => { e.stopPropagation(); startWorkout(id, null); };
+
+  const handleDuplicate = async (e, id) => {
+    e.stopPropagation();
+    try {
+      const res = await api.post(`/templates/${id}/duplicate`);
+      setTemplates(t => [res.data, ...t]);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to duplicate');
+    }
+  };
   const handleBackfillConfirm = (iso) => {
     setBackfillTemplate(null);
     startWorkout(backfillTemplate.id, iso);
@@ -175,6 +185,9 @@ export default function Templates() {
                   disabled={starting === t.id}
                 >
                   <CalendarDays size={14} />
+                </button>
+                <button className="btn btn-secondary btn-sm" title="Duplicate template" onClick={e => handleDuplicate(e, t.id)}>
+                  <Copy size={14} />
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); navigate(`/template/${t.id}/edit`); }}>
                   <Pencil size={14} />
