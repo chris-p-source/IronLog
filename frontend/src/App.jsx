@@ -11,6 +11,7 @@ import WorkoutDetail from './pages/WorkoutDetail';
 import Progress from './pages/Progress';
 import Bodyweight from './pages/Bodyweight';
 import Leaderboard from './pages/Leaderboard';
+import PersonalBests from './pages/PersonalBests';
 import UserProfile from './pages/UserProfile';
 import BottomNav from './components/BottomNav';
 import TopBar from './components/TopBar';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/progress" element={<PrivateRoute><AppLayout><Progress /></AppLayout></PrivateRoute>} />
         <Route path="/bodyweight" element={<PrivateRoute><AppLayout><Bodyweight /></AppLayout></PrivateRoute>} />
         <Route path="/leaderboard" element={<PrivateRoute><AppLayout><Leaderboard /></AppLayout></PrivateRoute>} />
+        <Route path="/personal-bests" element={<PrivateRoute><AppLayout><PersonalBests /></AppLayout></PrivateRoute>} />
         <Route path="/user/:username" element={<PrivateRoute><AppLayout><UserProfile /></AppLayout></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

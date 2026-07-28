@@ -191,4 +191,33 @@ router.get('/exercise/:name', async (req, res) => {
   }
 });
 
+// All-time PRs for every strength exercise the user has logged
+router.get('/personal-bests', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+         se.exercise_name,
+         MAX(ss.weight_kg)                                          AS pr_weight,
+         MAX(ss.reps_completed)                                     AS pr_reps,
+         MAX(ss.weight_kg * (1 + ss.reps_completed / 30.0))        AS estimated_1rm,
+         COUNT(DISTINCT ws.id)                                      AS total_sessions,
+         MAX(ws.completed_at)                                       AS last_performed
+       FROM session_sets ss
+       JOIN session_exercises se ON se.id = ss.session_exercise_id
+       JOIN workout_sessions  ws ON ws.id = se.session_id
+       WHERE ws.user_id = $1
+         AND ws.completed_at IS NOT NULL
+         AND se.exercise_type = 'strength'
+         AND ss.weight_kg > 0
+       GROUP BY se.exercise_name
+       ORDER BY se.exercise_name`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

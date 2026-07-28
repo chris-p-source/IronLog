@@ -2266,3 +2266,62 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* ── Personal Bests ── */
+.pb-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.pb-card:hover { border-color: var(--border-accent); }
+.pb-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.pb-exercise-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pb-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+}
+.pb-stat {
+  flex: 1;
+  text-align: center;
+}
+.pb-stat-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+}
+.pb-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin-top: 3px;
+}
+.pb-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+.pb-last-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
