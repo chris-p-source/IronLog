@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, Clock, TrendingUp, Trophy, Scale } from 'lucide-react';
+import { Dumbbell, Clock, TrendingUp, Trophy, Users } from 'lucide-react';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -38,11 +38,11 @@ export default function BottomNav() {
         <span>Leaderboard</span>
       </button>
       <button
-        className={`nav-item ${path === '/bodyweight' ? 'active' : ''}`}
-        onClick={() => navigate('/bodyweight')}
+        className={`nav-item ${path === '/feed' ? 'active' : ''}`}
+        onClick={() => navigate('/feed')}
       >
-        <Scale />
-        <span>Weight</span>
+        <Users />
+        <span>Feed</span>
       </button>
     </nav>
   );

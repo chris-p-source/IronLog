@@ -82,6 +82,7 @@ export default function UserProfile() {
   const [error, setError] = useState('');
   const [selectedExercise, setSelectedExercise] = useState('');
   const [progressData, setProgressData] = useState(null);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     api.get(`/users/${username}`)
@@ -102,6 +103,23 @@ export default function UserProfile() {
       .then(res => setProgressData(res.data))
       .catch(() => setProgressData(null));
   }, [selectedExercise, profile]);
+
+  const handleFollow = async () => {
+    if (!profile || followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (profile.is_following) {
+        await api.delete(`/users/${profile.username}/follow`);
+        setProfile(p => ({ ...p, is_following: false, follower_count: p.follower_count - 1 }));
+      } else {
+        await api.post(`/users/${profile.username}/follow`);
+        setProfile(p => ({ ...p, is_following: true, follower_count: p.follower_count + 1 }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setFollowLoading(false);
+  };
 
   const initials = profile?.username?.slice(0, 2).toUpperCase();
 
@@ -142,6 +160,24 @@ export default function UserProfile() {
         </div>
         <div className="user-profile-name">{profile.username}</div>
         <div className="user-profile-since">Member since {formatJoinDate(profile.created_at)}</div>
+        <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{profile.follower_count ?? 0}</strong> followers
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{profile.following_count ?? 0}</strong> following
+          </span>
+        </div>
+        {!profile.is_own && (
+          <button
+            className={profile.is_following ? 'btn btn-secondary' : 'btn btn-primary'}
+            style={{ marginTop: 14, minWidth: 120 }}
+            onClick={handleFollow}
+            disabled={followLoading}
+          >
+            {profile.is_following ? 'Unfollow' : 'Follow'}
+          </button>
+        )}
       </div>
 
       {/* Stats — consistent 2×2 grid */}

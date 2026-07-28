@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, LogOut, ChevronRight, User, Download, Trophy } from 'lucide-react';
+import { Lock, LogOut, ChevronRight, User, Download, Trophy, Scale, Dumbbell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -146,6 +146,18 @@ export default function ProfileMenu({ onClose }) {
             <div className="profile-menu-row" onClick={() => { navigate('/personal-bests'); onClose(); }}>
               <div className="profile-menu-row-icon" style={{ color: 'var(--warning)' }}><Trophy size={18} /></div>
               <div className="profile-menu-row-title" style={{ flex: 1 }}>Personal Bests</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
+            </div>
+
+            <div className="profile-menu-row" onClick={() => { navigate('/muscle-map'); onClose(); }}>
+              <div className="profile-menu-row-icon" style={{ color: 'var(--accent)' }}><Dumbbell size={18} /></div>
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>Muscle Map</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
+            </div>
+
+            <div className="profile-menu-row" onClick={() => { navigate('/bodyweight'); onClose(); }}>
+              <div className="profile-menu-row-icon"><Scale size={18} /></div>
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>Body Weight</div>
               <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 

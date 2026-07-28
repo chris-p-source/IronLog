@@ -110,6 +110,14 @@ async function migrate() {
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS notes TEXT;
 
+    CREATE TABLE IF NOT EXISTS followers (
+      id SERIAL PRIMARY KEY,
+      follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      following_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(follower_id, following_id)
+    );
+
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

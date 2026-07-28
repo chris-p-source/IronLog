@@ -2355,3 +2355,92 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   color: #a080ff;
   line-height: 1.2;
 }
+
+/* ── Feed ── */
+.feed-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.feed-card:hover { border-color: var(--border-accent); }
+.feed-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.feed-card-username {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.feed-card-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.feed-card-workout {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.feed-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.feed-stat {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+/* ── Muscle Map ── */
+.muscle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.muscle-row-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: 90px;
+  flex-shrink: 0;
+}
+.muscle-row-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.muscle-row-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.muscle-row-sets {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}

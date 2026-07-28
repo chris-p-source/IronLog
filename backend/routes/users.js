@@ -141,6 +141,69 @@ router.get('/me/export', async (req, res) => {
   }
 });
 
+// Social feed — workouts from users the current user follows
+router.get('/feed', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+         ws.id, ws.template_name, ws.template_type, ws.completed_at, ws.duration_seconds,
+         u.username, u.avatar_data,
+         COUNT(DISTINCT se.exercise_name) AS exercise_count,
+         COUNT(ss.id)                     AS sets_completed,
+         COALESCE(SUM(ss.weight_kg * ss.reps_completed), 0) AS total_volume
+       FROM workout_sessions ws
+       JOIN users u ON u.id = ws.user_id
+       LEFT JOIN session_exercises se ON se.session_id = ws.id
+       LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
+       WHERE ws.user_id IN (
+         SELECT following_id FROM followers WHERE follower_id = $1
+       )
+       AND ws.completed_at IS NOT NULL
+       GROUP BY ws.id, u.username, u.avatar_data
+       ORDER BY ws.completed_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Follow a user
+router.post('/:username/follow', async (req, res) => {
+  try {
+    const target = await db.query('SELECT id FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
+    if (!target.rows[0]) return res.status(404).json({ error: 'User not found' });
+    if (target.rows[0].id === req.user.id) return res.status(400).json({ error: 'Cannot follow yourself' });
+    await db.query(
+      'INSERT INTO followers (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [req.user.id, target.rows[0].id]
+    );
+    res.json({ following: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unfollow a user
+router.delete('/:username/follow', async (req, res) => {
+  try {
+    const target = await db.query('SELECT id FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
+    if (!target.rows[0]) return res.status(404).json({ error: 'User not found' });
+    await db.query(
+      'DELETE FROM followers WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, target.rows[0].id]
+    );
+    res.json({ following: false });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // View another user's profile — own profile always accessible regardless of is_public
 router.get('/:username', async (req, res) => {
   try {
@@ -159,19 +222,36 @@ router.get('/:username', async (req, res) => {
 
     const stats = await getUserStats(profile.id);
 
-    // Exercise list only for public profiles or own
-    let exercises = [];
-    const exResult = await db.query(
-      `SELECT DISTINCT se.exercise_name
-       FROM session_exercises se
-       JOIN workout_sessions ws ON ws.id = se.session_id
-       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_type = 'strength'
-       ORDER BY se.exercise_name`,
-      [profile.id]
-    );
-    exercises = exResult.rows.map(r => r.exercise_name);
+    const [followStats, isFollowingRow, exResult] = await Promise.all([
+      db.query(
+        `SELECT
+           (SELECT COUNT(*) FROM followers WHERE following_id = $1) AS followers,
+           (SELECT COUNT(*) FROM followers WHERE follower_id = $1)  AS following`,
+        [profile.id]
+      ),
+      isOwn ? Promise.resolve({ rows: [{ is_following: false }] }) : db.query(
+        'SELECT EXISTS(SELECT 1 FROM followers WHERE follower_id = $1 AND following_id = $2) AS is_following',
+        [req.user.id, profile.id]
+      ),
+      db.query(
+        `SELECT DISTINCT se.exercise_name
+         FROM session_exercises se
+         JOIN workout_sessions ws ON ws.id = se.session_id
+         WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_type = 'strength'
+         ORDER BY se.exercise_name`,
+        [profile.id]
+      ),
+    ]);
 
-    res.json({ ...profile, ...stats, exercises, is_own: isOwn });
+    const exercises = exResult.rows.map(r => r.exercise_name);
+    const { followers, following } = followStats.rows[0];
+
+    res.json({
+      ...profile, ...stats, exercises, is_own: isOwn,
+      is_following: isFollowingRow.rows[0]?.is_following ?? false,
+      follower_count: parseInt(followers),
+      following_count: parseInt(following),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
