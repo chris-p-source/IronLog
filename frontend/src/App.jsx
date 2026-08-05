@@ -15,6 +15,7 @@ import PersonalBests from './pages/PersonalBests';
 import Social from './pages/Social';
 import FindUsers from './pages/FindUsers';
 import MuscleMap from './pages/MuscleMap';
+import FoodDiary from './pages/FoodDiary';
 import UserProfile from './pages/UserProfile';
 import BottomNav from './components/BottomNav';
 import TopBar from './components/TopBar';
@@ -53,7 +54,8 @@ export default function App() {
           <Route path="/history/:sessionId" element={<PrivateRoute><AppLayout><WorkoutDetail /></AppLayout></PrivateRoute>} />
           <Route path="/progress" element={<PrivateRoute><AppLayout><Progress /></AppLayout></PrivateRoute>} />
           <Route path="/bodyweight" element={<Navigate to="/progress" replace />} />
-          <Route path="/recovery" element={<PrivateRoute><AppLayout><MuscleMap /></AppLayout></PrivateRoute>} />
+          <Route path="/recovery" element={<Navigate to="/progress" replace />} />
+          <Route path="/nutrition" element={<PrivateRoute><AppLayout><FoodDiary /></AppLayout></PrivateRoute>} />
           <Route path="/personal-bests" element={<PrivateRoute><AppLayout><PersonalBests /></AppLayout></PrivateRoute>} />
           <Route path="/social" element={<PrivateRoute><AppLayout><Social /></AppLayout></PrivateRoute>} />
           <Route path="/users" element={<PrivateRoute><AppLayout><FindUsers /></AppLayout></PrivateRoute>} />

@@ -18,6 +18,7 @@ app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/exercises', require('./routes/exercises'));
 app.use('/api/bodyweight', require('./routes/bodyweight'));
 app.use('/api/push', require('./routes/push'));
+app.use('/api/nutrition', require('./routes/nutrition'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', registerEnabled: config.REGISTER_ENABLED }));
 
 if (config.NODE_ENV === 'production') {
@@ -134,6 +135,34 @@ async function migrate() {
       logged_at DATE NOT NULL DEFAULT CURRENT_DATE,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(user_id, logged_at)
+    );
+
+    CREATE TABLE IF NOT EXISTS nutrition_goals (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      calories INTEGER,
+      protein_g INTEGER,
+      carbs_g INTEGER,
+      fat_g INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS food_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      logged_date DATE NOT NULL,
+      meal_type VARCHAR(20) NOT NULL,
+      food_name VARCHAR(255) NOT NULL,
+      brand VARCHAR(255),
+      barcode VARCHAR(50),
+      serving_size_g NUMERIC(8,1),
+      calories NUMERIC(8,1),
+      protein_g NUMERIC(8,1),
+      carbs_g NUMERIC(8,1),
+      fat_g NUMERIC(8,1),
+      fibre_g NUMERIC(8,1),
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 
