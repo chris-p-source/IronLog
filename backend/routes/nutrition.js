@@ -43,7 +43,7 @@ router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=15&fields=${OFF_FIELDS}`;
+    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=20&fields=${OFF_FIELDS}&lc=en&countries_tags=en:united-kingdom`;
     const response = await offFetch(url);
     if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
     const data = await response.json();
