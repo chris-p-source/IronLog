@@ -30,6 +30,37 @@ async function offFetchWithFallback(urls) {
   throw lastErr;
 }
 
+// ── USDA FoodData Central (final fallback) ─────────────────────────────────
+const USDA_KEY = 'DEMO_KEY'; // free, no signup — upgrade at https://fdc.nal.usda.gov/api-guide.html
+
+function getNutrient(nutrients, id) {
+  const n = (nutrients || []).find(n => n.nutrientId === id);
+  return n ? parseFloat(parseFloat(n.value).toFixed(1)) : 0;
+}
+
+async function searchUSDA(q) {
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${USDA_KEY}&pageSize=15`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OFF_TIMEOUT_MS);
+  const response = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+  if (!response.ok) throw new Error(`USDA HTTP ${response.status}`);
+  const data = await response.json();
+  return (data.foods || [])
+    .filter(f => f.description)
+    .map(f => ({
+      food_name: f.description.trim(),
+      brand: f.brandOwner || f.brandName || null,
+      barcode: f.gtinUpc || null,
+      serving_size_g: f.servingSize || 100,
+      calories_per100: getNutrient(f.foodNutrients, 1008),
+      protein_per100:  getNutrient(f.foodNutrients, 1003),
+      carbs_per100:    getNutrient(f.foodNutrients, 1005),
+      fat_per100:      getNutrient(f.foodNutrients, 1004),
+      fibre_per100:    getNutrient(f.foodNutrients, 1079),
+      nutriments: {},
+    }));
+}
+
 function mapProduct(p) {
   const n = p.nutriments || {};
   const get100 = (...keys) => {
@@ -53,25 +84,34 @@ function mapProduct(p) {
   };
 }
 
-// ── Food search proxy — tries world then uk as fallback ────────────────────
+// ── Food search: OFF world → OFF uk → USDA ────────────────────────────────
 router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
+
+  // Try Open Food Facts first (UK-filtered results)
   const qs = `search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}&lc=en&cc=gb`;
-  const urls = [
-    `https://world.openfoodfacts.org/cgi/search.pl?${qs}`,
-    `https://uk.openfoodfacts.org/cgi/search.pl?${qs}`,
-  ];
   try {
-    const data = await offFetchWithFallback(urls);
+    const data = await offFetchWithFallback([
+      `https://world.openfoodfacts.org/cgi/search.pl?${qs}`,
+      `https://uk.openfoodfacts.org/cgi/search.pl?${qs}`,
+    ]);
     const products = (data.products || [])
       .filter(p => p.product_name && p.product_name.trim())
       .map(mapProduct);
-    res.json(products);
+    if (products.length > 0) return res.json(products);
+    // OFF returned no results — fall through to USDA
   } catch (err) {
-    if (err.name === 'AbortError') return res.status(504).json({ error: 'Food database timed out' });
-    console.error('OFF search failed:', err.message);
-    res.status(502).json({ error: 'Food database unavailable' });
+    console.log('OFF search unavailable, trying USDA:', err.message);
+  }
+
+  // Fallback: USDA FoodData Central
+  try {
+    const products = await searchUSDA(q);
+    return res.json(products);
+  } catch (err) {
+    console.error('USDA search also failed:', err.message);
+    return res.status(502).json({ error: 'Food database unavailable — please try again shortly' });
   }
 });
 
