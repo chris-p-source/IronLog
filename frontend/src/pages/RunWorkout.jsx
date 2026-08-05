@@ -178,6 +178,7 @@ export default function RunWorkout() {
   const [prCelebration, setPrCelebration] = useState(null);
   const [plateCalcKey, setPlateCalcKey] = useState(null);
   const [minimizing, setMinimizing] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
   const prTimeoutRef = useRef(null);
   const pushReadyRef = useRef(false);
 
@@ -462,6 +463,16 @@ export default function RunWorkout() {
     }
   };
 
+  const handleCancelWorkout = async () => {
+    try {
+      await api.delete(`/workouts/${sessionId}`);
+    } catch (err) {
+      console.error('Failed to delete workout session', err);
+    }
+    clearActiveWorkout();
+    navigate('/', { replace: true });
+  };
+
   const handleMinimize = () => {
     setMinimizing(true);
     setTimeout(() => navigate('/', { replace: false }), 360);
@@ -731,6 +742,9 @@ export default function RunWorkout() {
         <button className="btn btn-success btn-block btn-lg" onClick={() => setShowFinish(true)}>
           <Trophy size={19} /> Finish Workout
         </button>
+        <button className="btn btn-cancel-workout" onClick={() => setShowCancel(true)}>
+          Cancel Workout
+        </button>
       </div>
 
       {restActive && !restMinimized && (
@@ -769,6 +783,27 @@ export default function RunWorkout() {
       {prCelebration && (
         <div className="pr-celebration" onClick={() => setPrCelebration(null)}>
           <Trophy size={20} /> {prCelebration}
+        </div>
+      )}
+
+      {showCancel && (
+        <div className="modal-overlay" onClick={() => setShowCancel(false)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div className="cancel-workout-modal-icon">✕</div>
+            <div className="modal-title" style={{ textAlign: 'center' }}>Cancel Workout?</div>
+            <div className="modal-body" style={{ textAlign: 'center' }}>
+              This will delete your session and all progress. This cannot be undone.
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-danger btn-block btn-lg" onClick={handleCancelWorkout}>
+                Yes, Cancel Workout
+              </button>
+              <button className="btn btn-secondary btn-block" onClick={() => setShowCancel(false)}>
+                Keep Going
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

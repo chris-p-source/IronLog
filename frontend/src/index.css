@@ -131,8 +131,8 @@ body {
 .btn-success { background: var(--success); color: #000; font-weight: 800; }
 .btn-success:hover:not(:disabled) { background: #00e0a8; box-shadow: 0 0 20px rgba(0,200,150,0.3); }
 
-.btn-danger { background: transparent; color: var(--accent); border: 1px solid rgba(230,48,48,0.4); }
-.btn-danger:hover { background: var(--accent-dim); }
+.btn-danger { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+.btn-danger:hover:not(:disabled) { background: #c92a2a; border-color: #c92a2a; box-shadow: 0 0 20px rgba(230,48,48,0.35); }
 
 .btn-block { width: 100%; }
 .btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
@@ -2700,6 +2700,47 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--accent);
+}
+
+/* ── Cancel workout button ── */
+.btn-cancel-workout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-cancel-workout:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Cancel workout modal icon ── */
+.cancel-workout-modal-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  border: 1px solid rgba(230, 48, 48, 0.3);
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
 }
 
 /* ── Find Users cards ── */

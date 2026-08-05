@@ -184,6 +184,32 @@ router.put('/:sessionId/exercises/:exerciseId', async (req, res) => {
   }
 });
 
+// Cancel (delete) an in-progress workout session
+router.delete('/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    // Verify the session belongs to the requesting user and is not yet completed
+    const check = await db.query(
+      'SELECT id FROM workout_sessions WHERE id = $1 AND user_id = $2 AND completed_at IS NULL',
+      [sessionId, req.user.id]
+    );
+    if (!check.rows[0]) return res.status(404).json({ error: 'Session not found or already completed' });
+    // Cascade deletes sets → exercises → session via FK constraints (or delete manually)
+    await db.query(
+      `DELETE FROM session_sets WHERE session_exercise_id IN (
+         SELECT id FROM session_exercises WHERE session_id = $1
+       )`,
+      [sessionId]
+    );
+    await db.query('DELETE FROM session_exercises WHERE session_id = $1', [sessionId]);
+    await db.query('DELETE FROM workout_sessions WHERE id = $1', [sessionId]);
+    res.json({ cancelled: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/heatmap', async (req, res) => {
   try {
     const result = await db.query(
