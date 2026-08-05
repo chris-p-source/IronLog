@@ -6,13 +6,28 @@ const fetch = require('node-fetch');
 router.use(auth);
 
 const OFF_FIELDS = 'code,product_name,brands,nutriments,serving_size,product_quantity';
-const OFF_TIMEOUT_MS = 8000;
+const OFF_TIMEOUT_MS = 6000;
 
 function offFetch(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OFF_TIMEOUT_MS);
   return fetch(url, { signal: controller.signal })
     .finally(() => clearTimeout(timer));
+}
+
+// Try each URL in order, return the first successful JSON response
+async function offFetchWithFallback(urls) {
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const response = await offFetch(url);
+      if (!response.ok) { lastErr = new Error(`HTTP ${response.status}`); continue; }
+      return await response.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }
 
 function mapProduct(p) {
@@ -38,40 +53,45 @@ function mapProduct(p) {
   };
 }
 
-// ── Food search proxy (Open Food Facts UK CGI — most reliable endpoint) ────
+// ── Food search proxy — tries world then uk as fallback ────────────────────
 router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
+  const qs = `search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}&lc=en&cc=gb`;
+  const urls = [
+    `https://world.openfoodfacts.org/cgi/search.pl?${qs}`,
+    `https://uk.openfoodfacts.org/cgi/search.pl?${qs}`,
+  ];
   try {
-    const url = `https://uk.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`;
-    const response = await offFetch(url);
-    if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
-    const data = await response.json();
+    const data = await offFetchWithFallback(urls);
     const products = (data.products || [])
       .filter(p => p.product_name && p.product_name.trim())
       .map(mapProduct);
     res.json(products);
   } catch (err) {
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Food database timed out' });
-    console.error(err);
+    console.error('OFF search failed:', err.message);
     res.status(502).json({ error: 'Food database unavailable' });
   }
 });
 
-// ── Barcode lookup proxy ───────────────────────────────────────────────────
+// ── Barcode lookup proxy — tries world then uk as fallback ─────────────────
 router.get('/barcode/:code', async (req, res) => {
+  const code = encodeURIComponent(req.params.code);
+  const qs = `fields=${OFF_FIELDS}`;
+  const urls = [
+    `https://world.openfoodfacts.org/api/v2/product/${code}.json?${qs}`,
+    `https://uk.openfoodfacts.org/api/v2/product/${code}.json?${qs}`,
+  ];
   try {
-    const url = `https://uk.openfoodfacts.org/api/v2/product/${encodeURIComponent(req.params.code)}.json?fields=${OFF_FIELDS}`;
-    const response = await offFetch(url);
-    if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
-    const data = await response.json();
+    const data = await offFetchWithFallback(urls);
     if (data.status !== 1 || !data.product?.product_name) {
       return res.status(404).json({ error: 'Product not found' });
     }
     res.json(mapProduct(data.product));
   } catch (err) {
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Food database timed out' });
-    console.error(err);
+    console.error('OFF barcode failed:', err.message);
     res.status(502).json({ error: 'Food database unavailable' });
   }
 });
