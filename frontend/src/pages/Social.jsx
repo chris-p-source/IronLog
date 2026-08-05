@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Trophy, Users } from 'lucide-react';
+import { Trophy, Users, Search } from 'lucide-react';
 import Feed from './Feed';
 import Leaderboard from './Leaderboard';
+import FindUsers from './FindUsers';
 
 export default function Social() {
   const [tab, setTab] = useState('feed');
@@ -19,9 +20,14 @@ export default function Social() {
         <button className={`tab-btn ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => setTab('leaderboard')}>
           <Trophy size={13} /> Leaderboard
         </button>
+        <button className={`tab-btn ${tab === 'find' ? 'active' : ''}`} onClick={() => setTab('find')}>
+          <Search size={13} /> Find People
+        </button>
       </div>
 
-      {tab === 'feed' ? <Feed hideHeader /> : <Leaderboard hideHeader />}
+      {tab === 'feed' && <Feed hideHeader />}
+      {tab === 'leaderboard' && <Leaderboard hideHeader />}
+      {tab === 'find' && <FindUsers hideHeader />}
     </div>
   );
 }

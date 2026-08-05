@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2 } from 'lucide-react';
 import api from '../api';
+import { useWorkout } from '../context/WorkoutContext';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -153,6 +154,7 @@ export default function RunWorkout() {
   const { sessionId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { setActiveWorkout, clearActiveWorkout } = useWorkout();
 
   const [session, setSession] = useState(location.state?.session || null);
   const [exercises, setExercises] = useState(location.state?.exercises || []);
@@ -187,7 +189,17 @@ export default function RunWorkout() {
   useEffect(() => {
     if (loading) {
       api.get(`/workouts/${sessionId}`)
-        .then(res => { setSession(res.data.session); setExercises(res.data.exercises); setLoading(false); })
+        .then(res => {
+          setSession(res.data.session);
+          setExercises(res.data.exercises);
+          setLoading(false);
+          // Register active workout so the banner shows when navigating away
+          setActiveWorkout({
+            sessionId,
+            templateName: res.data.session.template_name,
+            startedAt: res.data.session.started_at,
+          });
+        })
         .catch(() => navigate('/'));
     }
   }, [sessionId]);
@@ -426,6 +438,7 @@ export default function RunWorkout() {
       const totalSetsCompleted = setsFlat.length;
       const prs = prCelebration ? [prCelebration] : [];
 
+      clearActiveWorkout();
       setSummary({
         templateName: session.template_name,
         duration: elapsed,

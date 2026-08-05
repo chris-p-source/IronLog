@@ -2500,3 +2500,172 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .edit-inline-input:focus {
   border-color: var(--accent);
 }
+
+/* ── Active Workout Banner ── */
+.active-workout-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 16px;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.active-workout-banner-pulse {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  animation: banner-shimmer 2s infinite;
+}
+@keyframes banner-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.active-workout-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.active-workout-banner-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.active-workout-banner-time {
+  font-size: 11px;
+  opacity: 0.85;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.active-workout-banner-cta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Welcome Modal ── */
+.welcome-modal {
+  position: relative;
+  background: var(--bg-elevated);
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  width: calc(100% - 40px);
+  max-width: 400px;
+  margin: auto;
+  overflow: hidden;
+}
+.welcome-modal-glow {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(230,48,48,0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+.welcome-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.welcome-modal-greeting {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.welcome-modal-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-weight: 500;
+}
+.welcome-modal-quote {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px 16px;
+  margin-bottom: 20px;
+  position: relative;
+}
+.welcome-modal-quote-mark {
+  font-family: Georgia, serif;
+  font-size: 52px;
+  color: var(--accent);
+  line-height: 0.6;
+  margin-bottom: 8px;
+  opacity: 0.7;
+}
+.welcome-modal-quote-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  font-style: italic;
+  margin-bottom: 10px;
+}
+.welcome-modal-quote-author {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+}
+
+/* ── Find Users cards ── */
+.find-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.find-user-card:hover { border-color: var(--border-accent); }
+.find-user-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+}
+.find-user-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Small button variant ── */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

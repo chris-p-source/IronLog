@@ -204,6 +204,31 @@ router.delete('/:username/follow', async (req, res) => {
   }
 });
 
+// Search / discover users
+router.get('/search', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim().toLowerCase();
+    const result = await db.query(
+      `SELECT
+         u.id, u.username, u.avatar_data,
+         COUNT(ws.id) AS total_workouts,
+         EXISTS(SELECT 1 FROM followers WHERE follower_id = $2 AND following_id = u.id) AS is_following
+       FROM users u
+       LEFT JOIN workout_sessions ws ON ws.user_id = u.id AND ws.completed_at IS NOT NULL
+       WHERE (u.is_public = true OR u.id = $2)
+         AND ($1 = '' OR u.username ILIKE '%' || $1 || '%')
+       GROUP BY u.id
+       ORDER BY u.username
+       LIMIT 50`,
+      [q, req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // View another user's profile — own profile always accessible regardless of is_public
 router.get('/:username', async (req, res) => {
   try {
