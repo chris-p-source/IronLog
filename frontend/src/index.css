@@ -419,6 +419,20 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   flex-direction: column;
 }
 
+/* ── Minimize animation ── */
+@keyframes workout-shrink-to-banner {
+  0%   { transform: scale(1) translateY(0);      opacity: 1;    border-radius: 0; }
+  60%  { transform: scale(0.55) translateY(-28%); opacity: 0.85; border-radius: 16px; }
+  100% { transform: scale(0.08) translateY(-52%); opacity: 0;    border-radius: 40px; }
+}
+
+.workout-minimizing {
+  animation: workout-shrink-to-banner 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform-origin: top center;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 .workout-header {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-accent);
@@ -430,6 +444,41 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.workout-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  margin-bottom: 0;
+}
+
+.workout-minimize-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.workout-minimize-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+.workout-minimize-btn:active {
+  transform: translateY(-50%) scale(0.92);
 }
 
 .workout-name-label {

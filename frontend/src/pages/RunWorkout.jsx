@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2 } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2, Minimize2 } from 'lucide-react';
 import api from '../api';
 import { useWorkout } from '../context/WorkoutContext';
 
@@ -177,6 +177,7 @@ export default function RunWorkout() {
   const [notes, setNotes] = useState('');
   const [prCelebration, setPrCelebration] = useState(null);
   const [plateCalcKey, setPlateCalcKey] = useState(null);
+  const [minimizing, setMinimizing] = useState(false);
   const prTimeoutRef = useRef(null);
   const pushReadyRef = useRef(false);
 
@@ -456,6 +457,11 @@ export default function RunWorkout() {
     }
   };
 
+  const handleMinimize = () => {
+    setMinimizing(true);
+    setTimeout(() => navigate('/', { replace: false }), 520);
+  };
+
   const strengthExercises = exercises.filter(e => e.exercise_type !== 'cardio');
   const cardioExercises = exercises.filter(e => e.exercise_type === 'cardio');
   const totalSets = strengthExercises.reduce((a, e) => a + e.sets_planned, 0);
@@ -538,9 +544,18 @@ export default function RunWorkout() {
   }
 
   return (
-    <div className="workout-page">
+    <div className={`workout-page${minimizing ? ' workout-minimizing' : ''}`}>
       <div className="workout-header">
-        <div className="workout-name-label">{session?.template_name}</div>
+        <div className="workout-header-top">
+          <div className="workout-name-label">{session?.template_name}</div>
+          <button
+            className="workout-minimize-btn"
+            onClick={handleMinimize}
+            title="Minimise workout"
+          >
+            <Minimize2 size={17} />
+          </button>
+        </div>
         <div className="workout-timer-main">{formatTime(elapsed)}</div>
         <div className="workout-progress-row">
           <span className="workout-progress-text">
