@@ -38,12 +38,12 @@ function mapProduct(p) {
   };
 }
 
-// ── Food search proxy (Open Food Facts v2) ─────────────────────────────────
+// ── Food search proxy (Open Food Facts UK CGI — most reliable endpoint) ────
 router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=20&fields=${OFF_FIELDS}&lc=en&countries_tags=en:united-kingdom`;
+    const url = `https://uk.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`;
     const response = await offFetch(url);
     if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
     const data = await response.json();
@@ -61,7 +61,7 @@ router.get('/search', async (req, res) => {
 // ── Barcode lookup proxy ───────────────────────────────────────────────────
 router.get('/barcode/:code', async (req, res) => {
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(req.params.code)}.json?fields=${OFF_FIELDS}`;
+    const url = `https://uk.openfoodfacts.org/api/v2/product/${encodeURIComponent(req.params.code)}.json?fields=${OFF_FIELDS}`;
     const response = await offFetch(url);
     if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
     const data = await response.json();
