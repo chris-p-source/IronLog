@@ -121,44 +121,45 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
     setSearchErr(null);
     setResults([]);
     try {
-      const res = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=10&fields=code,product_name,brands,nutriments,serving_size,product_quantity`
-      );
-      const data = await res.json();
-      const products = (data.products || []).filter(p => p.product_name).map(mapOFFProduct);
+      const res = await api.get(`/nutrition/search?q=${encodeURIComponent(q.trim())}`);
+      const products = res.data;
       setResults(products);
       if (products.length === 0) setSearchErr('No results found. Try a different name or log manually.');
-    } catch {
-      setSearchErr('Search failed. Check your connection.');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Search failed. Please try again.';
+      setSearchErr(msg);
     }
     setSearching(false);
   };
 
-  const macroAt = (nutriment, key, serving) => {
-    const per100 = parseFloat(nutriment?.[key + '_100g'] ?? nutriment?.[key] ?? 0) || 0;
-    return parseFloat(((per100 * serving) / 100).toFixed(1));
-  };
+  // Macros scale linearly from per-100g values stored on the product
+  const macroAt = (per100, serving) => parseFloat(((per100 * serving) / 100).toFixed(1));
 
   const confirmedEntry = () => {
     if (!selected) return;
     const g = parseFloat(servingG) || 100;
+    const n = selected.nutriments || {};
+    const get100 = (...keys) => {
+      for (const k of keys) { const v = parseFloat(n[k]); if (!isNaN(v)) return v; }
+      return 0;
+    };
     return {
       meal_type: mealKey,
       food_name: selected.food_name,
       brand: selected.brand || null,
       barcode: selected.barcode || null,
       serving_size_g: g,
-      calories: macroAt(selected._nutriments, 'energy-kcal', g),
-      protein_g: macroAt(selected._nutriments, 'proteins', g),
-      carbs_g: macroAt(selected._nutriments, 'carbohydrates', g),
-      fat_g: macroAt(selected._nutriments, 'fat', g),
-      fibre_g: macroAt(selected._nutriments, 'fiber', g),
+      calories: macroAt(get100('energy-kcal_100g', 'energy-kcal'), g),
+      protein_g: macroAt(get100('proteins_100g', 'proteins'), g),
+      carbs_g: macroAt(get100('carbohydrates_100g', 'carbohydrates'), g),
+      fat_g: macroAt(get100('fat_100g', 'fat'), g),
+      fibre_g: macroAt(get100('fiber_100g', 'fiber', 'fibers_100g'), g),
     };
   };
 
   return (
     <div className="modal-overlay" style={{ alignItems: 'flex-end', zIndex: 300 }} onClick={onClose}>
-      <div className="modal-sheet" style={{ maxHeight: '85dvh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+      <div className="modal-sheet" style={{ maxHeight: '85dvh', minHeight: '50dvh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
 
         {mode === 'search' && (
@@ -247,10 +248,10 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
             {/* Live macro preview */}
             {(() => {
               const g = parseFloat(servingG) || 0;
-              const cal = macroAt(selected._nutriments, 'energy-kcal', g);
-              const pro = macroAt(selected._nutriments, 'proteins', g);
-              const carb = macroAt(selected._nutriments, 'carbohydrates', g);
-              const fat = macroAt(selected._nutriments, 'fat', g);
+              const cal = macroAt(selected.calories_per100 || 0, g);
+              const pro = macroAt(selected.protein_per100 || 0, g);
+              const carb = macroAt(selected.carbs_per100 || 0, g);
+              const fat = macroAt(selected.fat_per100 || 0, g);
               return (
                 <div className="confirm-macro-grid">
                   <div className="confirm-macro-cell">
@@ -385,22 +386,6 @@ function GoalsModal({ goals, onSave, onClose }) {
   );
 }
 
-// ── Helper: map Open Food Facts product to our shape ───────────────────────
-function mapOFFProduct(p) {
-  const n = p.nutriments || {};
-  return {
-    food_name: p.product_name || 'Unknown product',
-    brand: p.brands || null,
-    barcode: p.code || null,
-    serving_size_g: parseFloat(p.serving_size) || parseFloat(p.product_quantity) || 100,
-    calories_per100: parseFloat(n['energy-kcal_100g'] ?? n['energy-kcal'] ?? 0) || 0,
-    protein_per100: parseFloat((n.proteins_100g ?? n.proteins ?? 0)).toFixed(1),
-    carbs_per100: parseFloat((n.carbohydrates_100g ?? n.carbohydrates ?? 0)).toFixed(1),
-    fat_per100: parseFloat((n.fat_100g ?? n.fat ?? 0)).toFixed(1),
-    _nutriments: n,
-  };
-}
-
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function FoodDiary() {
   const [date, setDate] = useState(todayStr());
@@ -452,17 +437,16 @@ export default function FoodDiary() {
     setShowScanner(false);
     setScanLoading(true);
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=code,product_name,brands,nutriments,serving_size,product_quantity`);
-      const data = await res.json();
-      if (data.status === 1 && data.product?.product_name) {
-        setScanProduct(mapOFFProduct(data.product));
-        setAddTarget(scanTarget);
-      } else {
+      const res = await api.get(`/nutrition/barcode/${encodeURIComponent(code)}`);
+      setScanProduct(res.data);
+      setAddTarget(scanTarget);
+    } catch (err) {
+      if (err.response?.status === 404) {
         alert('Product not found in database. You can add it manually.');
-        setAddTarget(scanTarget);
+      } else {
+        alert('Failed to look up product. Please try again.');
       }
-    } catch {
-      alert('Failed to look up product. Please try again.');
+      setAddTarget(scanTarget); // still open the modal for manual entry
     }
     setScanLoading(false);
   };

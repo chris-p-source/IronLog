@@ -2542,7 +2542,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   border: none;
   outline: none;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 16px; /* must be ≥16px to prevent iOS zoom on focus */
   font-family: var(--font-body);
 }
 .search-input::placeholder {

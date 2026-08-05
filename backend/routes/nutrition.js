@@ -4,6 +4,77 @@ const auth = require('../middleware/auth');
 
 router.use(auth);
 
+const OFF_FIELDS = 'code,product_name,brands,nutriments,serving_size,product_quantity';
+const OFF_TIMEOUT_MS = 8000;
+
+function offFetch(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OFF_TIMEOUT_MS);
+  return fetch(url, { signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+function mapProduct(p) {
+  const n = p.nutriments || {};
+  const get100 = (...keys) => {
+    for (const k of keys) {
+      const v = parseFloat(n[k]);
+      if (!isNaN(v)) return v;
+    }
+    return 0;
+  };
+  return {
+    food_name: (p.product_name || '').trim() || 'Unknown product',
+    brand: (p.brands || '').split(',')[0].trim() || null,
+    barcode: p.code || null,
+    serving_size_g: parseFloat(p.serving_size) || parseFloat(p.product_quantity) || 100,
+    calories_per100: parseFloat(get100('energy-kcal_100g', 'energy-kcal').toFixed(1)),
+    protein_per100: parseFloat(get100('proteins_100g', 'proteins').toFixed(1)),
+    carbs_per100: parseFloat(get100('carbohydrates_100g', 'carbohydrates').toFixed(1)),
+    fat_per100: parseFloat(get100('fat_100g', 'fat').toFixed(1)),
+    fibre_per100: parseFloat(get100('fiber_100g', 'fiber', 'fibers_100g').toFixed(1)),
+    nutriments: n,
+  };
+}
+
+// ── Food search proxy (Open Food Facts v2) ─────────────────────────────────
+router.get('/search', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+  try {
+    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=15&fields=${OFF_FIELDS}&sort_by=unique_scans_n`;
+    const response = await offFetch(url);
+    if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
+    const data = await response.json();
+    const products = (data.products || [])
+      .filter(p => p.product_name && p.product_name.trim())
+      .map(mapProduct);
+    res.json(products);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Food database timed out' });
+    console.error(err);
+    res.status(502).json({ error: 'Food database unavailable' });
+  }
+});
+
+// ── Barcode lookup proxy ───────────────────────────────────────────────────
+router.get('/barcode/:code', async (req, res) => {
+  try {
+    const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(req.params.code)}.json?fields=${OFF_FIELDS}`;
+    const response = await offFetch(url);
+    if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
+    const data = await response.json();
+    if (data.status !== 1 || !data.product?.product_name) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(mapProduct(data.product));
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Food database timed out' });
+    console.error(err);
+    res.status(502).json({ error: 'Food database unavailable' });
+  }
+});
+
 // ── Goals ──────────────────────────────────────────────────────────────────
 
 router.get('/goals', async (req, res) => {
