@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const fetch = require('node-fetch');
 
 router.use(auth);
 
@@ -42,7 +43,7 @@ router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=15&fields=${OFF_FIELDS}&sort_by=unique_scans_n`;
+    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=15&fields=${OFF_FIELDS}`;
     const response = await offFetch(url);
     if (!response.ok) return res.status(502).json({ error: 'Food database unavailable' });
     const data = await response.json();
