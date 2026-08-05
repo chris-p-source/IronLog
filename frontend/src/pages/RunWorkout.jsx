@@ -194,16 +194,21 @@ export default function RunWorkout() {
           setSession(res.data.session);
           setExercises(res.data.exercises);
           setLoading(false);
-          // Register active workout so the banner shows when navigating away
-          setActiveWorkout({
-            sessionId,
-            templateName: res.data.session.template_name,
-            startedAt: res.data.session.started_at,
-          });
         })
         .catch(() => navigate('/'));
     }
   }, [sessionId]);
+
+  // Register the active workout in context as soon as session is known —
+  // whether it came from location.state or the fetch above.
+  useEffect(() => {
+    if (!session) return;
+    setActiveWorkout({
+      sessionId,
+      templateName: session.template_name,
+      startedAt: session.started_at,
+    });
+  }, [session?.id]);
 
   useEffect(() => {
     if (exercises.length === 0) return;
@@ -459,7 +464,7 @@ export default function RunWorkout() {
 
   const handleMinimize = () => {
     setMinimizing(true);
-    setTimeout(() => navigate('/', { replace: false }), 520);
+    setTimeout(() => navigate('/', { replace: false }), 360);
   };
 
   const strengthExercises = exercises.filter(e => e.exercise_type !== 'cardio');
