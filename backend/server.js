@@ -137,6 +137,21 @@ async function migrate() {
       UNIQUE(user_id, logged_at)
     );
 
+    CREATE TABLE IF NOT EXISTS saved_foods (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      food_name VARCHAR(255) NOT NULL,
+      brand VARCHAR(255),
+      barcode VARCHAR(50),
+      serving_size_g NUMERIC(8,1) DEFAULT 100,
+      calories_per100 NUMERIC(8,1),
+      protein_per100 NUMERIC(8,1),
+      carbs_per100 NUMERIC(8,1),
+      fat_per100 NUMERIC(8,1),
+      fibre_per100 NUMERIC(8,1),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS nutrition_goals (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

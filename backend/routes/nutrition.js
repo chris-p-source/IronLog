@@ -136,6 +136,55 @@ router.get('/barcode/:code', async (req, res) => {
   }
 });
 
+// ── Saved foods ────────────────────────────────────────────────────────────
+
+router.get('/saved', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, food_name, brand, barcode, serving_size_g,
+              calories_per100, protein_per100, carbs_per100, fat_per100, fibre_per100
+       FROM saved_foods WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/saved', async (req, res) => {
+  const { food_name, brand, barcode, serving_size_g, calories_per100, protein_per100, carbs_per100, fat_per100, fibre_per100 } = req.body;
+  if (!food_name) return res.status(400).json({ error: 'food_name is required' });
+  try {
+    const result = await db.query(
+      `INSERT INTO saved_foods (user_id, food_name, brand, barcode, serving_size_g, calories_per100, protein_per100, carbs_per100, fat_per100, fibre_per100)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.user.id, food_name, brand || null, barcode || null,
+       serving_size_g || 100, calories_per100 || 0, protein_per100 || 0,
+       carbs_per100 || 0, fat_per100 || 0, fibre_per100 || 0]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/saved/:id', async (req, res) => {
+  try {
+    const result = await db.query(
+      'DELETE FROM saved_foods WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ── Goals ──────────────────────────────────────────────────────────────────
 
 router.get('/goals', async (req, res) => {

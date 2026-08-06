@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ScanLine, Search, Plus, Trash2, ChevronLeft, ChevronRight, Settings, X, Loader } from 'lucide-react';
+import { ScanLine, Search, Plus, Trash2, ChevronLeft, ChevronRight, Settings, X, Loader, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '../api';
 
@@ -96,8 +96,8 @@ function ScannerModal({ onResult, onClose }) {
   );
 }
 
-// ── Add food modal (search + manual) ──────────────────────────────────────
-function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
+// ── Add food modal (search + confirm + manual) ─────────────────────────────
+function AddFoodModal({ mealKey, mealLabel, prefillProduct, savedFoods, onSaveFood, onUnsaveFood, onAdd, onClose }) {
   const [mode, setMode] = useState(prefillProduct ? 'confirm' : 'search');
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -105,6 +105,7 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
   const [selected, setSelected] = useState(prefillProduct || null);
   const [servingG, setServingG] = useState('100');
   const [searchErr, setSearchErr] = useState(null);
+  const [savingFood, setSavingFood] = useState(false);
 
   // When a scanned product is prefilled, go straight to confirm
   useEffect(() => {
@@ -132,29 +133,60 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
     setSearching(false);
   };
 
-  // Macros scale linearly from per-100g values stored on the product
   const macroAt = (per100, serving) => parseFloat(((per100 * serving) / 100).toFixed(1));
 
   const confirmedEntry = () => {
-    if (!selected) return;
+    if (!selected) return null;
     const g = parseFloat(servingG) || 100;
-    const n = selected.nutriments || {};
-    const get100 = (...keys) => {
-      for (const k of keys) { const v = parseFloat(n[k]); if (!isNaN(v)) return v; }
-      return 0;
-    };
     return {
       meal_type: mealKey,
       food_name: selected.food_name,
       brand: selected.brand || null,
       barcode: selected.barcode || null,
       serving_size_g: g,
-      calories: macroAt(get100('energy-kcal_100g', 'energy-kcal'), g),
-      protein_g: macroAt(get100('proteins_100g', 'proteins'), g),
-      carbs_g: macroAt(get100('carbohydrates_100g', 'carbohydrates'), g),
-      fat_g: macroAt(get100('fat_100g', 'fat'), g),
-      fibre_g: macroAt(get100('fiber_100g', 'fiber', 'fibers_100g'), g),
+      calories: macroAt(selected.calories_per100 || 0, g),
+      protein_g: macroAt(selected.protein_per100 || 0, g),
+      carbs_g: macroAt(selected.carbs_per100 || 0, g),
+      fat_g: macroAt(selected.fat_per100 || 0, g),
+      fibre_g: macroAt(selected.fibre_per100 || 0, g),
     };
+  };
+
+  // Find if current selected food is already saved
+  const savedMatch = selected
+    ? savedFoods.find(sf =>
+        (sf.barcode && selected.barcode && sf.barcode === selected.barcode) ||
+        (sf.food_name === selected.food_name && sf.brand === (selected.brand || null))
+      )
+    : null;
+
+  const handleToggleSave = async () => {
+    if (!selected) return;
+    setSavingFood(true);
+    try {
+      if (savedMatch) {
+        await onUnsaveFood(savedMatch.id);
+      } else {
+        await onSaveFood({
+          food_name: selected.food_name,
+          brand: selected.brand || null,
+          barcode: selected.barcode || null,
+          serving_size_g: parseFloat(servingG) || 100,
+          calories_per100: selected.calories_per100 || 0,
+          protein_per100: selected.protein_per100 || 0,
+          carbs_per100: selected.carbs_per100 || 0,
+          fat_per100: selected.fat_per100 || 0,
+          fibre_per100: selected.fibre_per100 || 0,
+        });
+      }
+    } catch {}
+    setSavingFood(false);
+  };
+
+  const goToConfirm = (food) => {
+    setSelected(food);
+    setServingG(String(food.serving_size_g || 100));
+    setMode('confirm');
   };
 
   return (
@@ -190,11 +222,35 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
               )}
             </div>
 
+            {/* Saved foods shown when no search has been performed */}
+            {!searching && results.length === 0 && !searchErr && savedFoods.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <div className="saved-foods-heading">
+                  <Bookmark size={13} />
+                  <span>Saved Foods</span>
+                </div>
+                {savedFoods.map(sf => (
+                  <div key={sf.id} className="food-result-row saved-food-row" onClick={() => goToConfirm(sf)}>
+                    <div className="food-result-name">{sf.food_name}</div>
+                    {sf.brand && <div className="food-result-brand">{sf.brand}</div>}
+                    <div className="food-result-macros">
+                      <span>{Math.round(sf.calories_per100)}kcal</span>
+                      <span>P {parseFloat(sf.protein_per100).toFixed(1)}g</span>
+                      <span>C {parseFloat(sf.carbs_per100).toFixed(1)}g</span>
+                      <span>F {parseFloat(sf.fat_per100).toFixed(1)}g</span>
+                      <span className="food-result-per">per 100g</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="saved-foods-divider" />
+              </div>
+            )}
+
             {searching && <div className="loading" style={{ padding: '20px 0' }}><Loader size={18} className="spin" /> Searching…</div>}
             {searchErr && <div className="empty-state" style={{ paddingTop: 16 }}><p>{searchErr}</p></div>}
 
             {results.map((p, i) => (
-              <div key={i} className="food-result-row" onClick={() => { setSelected(p); setServingG(String(p.serving_size_g || 100)); setMode('confirm'); }}>
+              <div key={i} className="food-result-row" onClick={() => goToConfirm(p)}>
                 <div className="food-result-name">{p.food_name}</div>
                 {p.brand && <div className="food-result-brand">{p.brand}</div>}
                 <div className="food-result-macros">
@@ -221,10 +277,20 @@ function AddFoodModal({ mealKey, mealLabel, prefillProduct, onAdd, onClose }) {
         {mode === 'confirm' && selected && (
           <>
             <div className="modal-header">
-              <button className="modal-close" onClick={() => setMode(prefillProduct ? 'search' : 'search')}>
+              <button className="modal-close" onClick={() => setMode('search')}>
                 <ChevronLeft size={20} />
               </button>
               <div className="modal-title" style={{ flex: 1, textAlign: 'center' }}>Confirm Serving</div>
+              {/* Bookmark / save toggle */}
+              <button
+                className="modal-close"
+                onClick={handleToggleSave}
+                disabled={savingFood}
+                title={savedMatch ? 'Remove from saved' : 'Save food'}
+                style={{ color: savedMatch ? 'var(--accent)' : 'var(--text-muted)' }}
+              >
+                {savedMatch ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+              </button>
               <button className="modal-close" onClick={onClose}><X size={18} /></button>
             </div>
 
@@ -392,18 +458,20 @@ export default function FoodDiary() {
   const [logs, setLogs] = useState([]);
   const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savedFoods, setSavedFoods] = useState([]);
 
   const [showScanner, setShowScanner] = useState(false);
-  const [scanTarget, setScanTarget] = useState(null); // { mealKey, mealLabel }
+  const [scanTarget, setScanTarget] = useState(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanProduct, setScanProduct] = useState(null);
 
-  const [addTarget, setAddTarget] = useState(null); // { mealKey, mealLabel }
+  const [addTarget, setAddTarget] = useState(null);
   const [showGoals, setShowGoals] = useState(false);
 
-  // Load goals once
+  // Load goals + saved foods once
   useEffect(() => {
     api.get('/nutrition/goals').then(r => setGoals(r.data)).catch(() => {});
+    api.get('/nutrition/saved').then(r => setSavedFoods(r.data)).catch(() => {});
   }, []);
 
   // Load logs when date changes
@@ -446,13 +514,14 @@ export default function FoodDiary() {
       } else {
         alert('Failed to look up product. Please try again.');
       }
-      setAddTarget(scanTarget); // still open the modal for manual entry
+      setAddTarget(scanTarget);
     }
     setScanLoading(false);
   };
 
   // ── Add food entry ──
   const handleAdd = async (entry) => {
+    if (!entry) return;
     try {
       const res = await api.post('/nutrition/logs', { ...entry, date });
       setLogs(l => [...l, res.data]);
@@ -467,6 +536,18 @@ export default function FoodDiary() {
       await api.delete(`/nutrition/logs/${id}`);
       setLogs(l => l.filter(e => e.id !== id));
     } catch { alert('Failed to delete entry.'); }
+  };
+
+  // ── Save / unsave food ──
+  const handleSaveFood = async (food) => {
+    const res = await api.post('/nutrition/saved', food);
+    setSavedFoods(sf => [res.data, ...sf]);
+    return res.data;
+  };
+
+  const handleUnsaveFood = async (id) => {
+    await api.delete(`/nutrition/saved/${id}`);
+    setSavedFoods(sf => sf.filter(f => f.id !== id));
   };
 
   // ── Save goals ──
@@ -590,6 +671,9 @@ export default function FoodDiary() {
           mealKey={addTarget.mealKey}
           mealLabel={addTarget.mealLabel}
           prefillProduct={scanProduct}
+          savedFoods={savedFoods}
+          onSaveFood={handleSaveFood}
+          onUnsaveFood={handleUnsaveFood}
           onAdd={handleAdd}
           onClose={() => { setAddTarget(null); setScanProduct(null); }}
         />
