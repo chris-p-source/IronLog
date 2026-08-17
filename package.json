@@ -5,6 +5,7 @@
     "build": "cd backend && npm install && cd ../frontend && npm install && npm run build",
     "start": "cd backend && node server.js",
     "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev"
   },
