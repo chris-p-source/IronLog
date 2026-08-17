@@ -14,6 +14,18 @@ if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
 
 router.use(auth);
 
+// One pending rest notification per user — starting a new rest (or skipping)
+// cancels whatever was still queued, so a superseded timer never fires early.
+const pendingRestTimers = new Map();
+
+function cancelPendingRest(userId) {
+  const timer = pendingRestTimers.get(userId);
+  if (!timer) return false;
+  clearTimeout(timer);
+  pendingRestTimers.delete(userId);
+  return true;
+}
+
 // Return the public VAPID key so the client can subscribe
 router.get('/vapid-public-key', (req, res) => {
   if (!config.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push not configured' });
@@ -59,7 +71,9 @@ router.post('/rest-timer', async (req, res) => {
       tag: 'rest-timer',
     });
 
-    setTimeout(async () => {
+    cancelPendingRest(req.user.id);
+    const timer = setTimeout(async () => {
+      pendingRestTimers.delete(req.user.id);
       for (const row of subs.rows) {
         try {
           await webpush.sendNotification(JSON.parse(row.subscription_json), payload);
@@ -72,12 +86,18 @@ router.post('/rest-timer', async (req, res) => {
         }
       }
     }, duration_seconds * 1000);
+    pendingRestTimers.set(req.user.id, timer);
 
     res.json({ scheduled: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Cancel a queued rest-complete notification (rest skipped or workout ended)
+router.delete('/rest-timer', (req, res) => {
+  res.json({ cancelled: cancelPendingRest(req.user.id) });
 });
 
 module.exports = router;

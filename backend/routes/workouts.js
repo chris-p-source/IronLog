@@ -77,6 +77,28 @@ router.post('/:sessionId/log-set', async (req, res) => {
   }
 });
 
+// Remove a logged set (user un-ticked it in the workout runner)
+router.post('/:sessionId/unlog-set', async (req, res) => {
+  const { session_exercise_id, set_number } = req.body;
+  try {
+    const sess = await db.query(
+      `SELECT ws.id FROM workout_sessions ws
+       JOIN session_exercises se ON se.session_id = ws.id
+       WHERE ws.id = $1 AND ws.user_id = $2 AND se.id = $3`,
+      [req.params.sessionId, req.user.id, session_exercise_id]
+    );
+    if (sess.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    await db.query(
+      'DELETE FROM session_sets WHERE session_exercise_id = $1 AND set_number = $2',
+      [session_exercise_id, set_number]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/:sessionId/log-cardio', async (req, res) => {
   const { session_exercise_id, duration_minutes, cardio_metrics } = req.body;
   try {

@@ -163,11 +163,11 @@ export default function RunWorkout() {
   const [lastSessionData, setLastSessionData] = useState({});
 
   const [elapsed, setElapsed] = useState(0);
-  const [restActive, setRestActive] = useState(false);
+  // A rest period is a fresh object — { startedAt, duration, exerciseName } — so
+  // starting a new rest while one is running replaces it identity-and-all.
+  const [rest, setRest] = useState(null);
   const [restMinimized, setRestMinimized] = useState(false);
   const [restRemaining, setRestRemaining] = useState(DEFAULT_REST);
-  const [restDuration, setRestDuration] = useState(DEFAULT_REST);
-  const [restExName, setRestExName] = useState('');
 
   const [setData, setSetData] = useState({});
   // cardioData: { [exId]: { minutes, done, metrics: { key: value } } }
@@ -183,10 +183,7 @@ export default function RunWorkout() {
   const pushReadyRef = useRef(false);
 
   const elapsedRef = useRef(null);
-  const restRef = useRef(null);
   const workoutStartRef = useRef(null);
-  const restStartRef = useRef(null);
-  const restDurationRef = useRef(DEFAULT_REST);
 
   useEffect(() => {
     if (loading) {
@@ -276,41 +273,42 @@ export default function RunWorkout() {
     return () => clearInterval(elapsedRef.current);
   }, [session]);
 
-  // Rest timer — timestamp-based
+  // Rest timer — timestamp-based, and keyed on the rest object itself so every
+  // new rest period tears down the previous countdown and arms a fresh one.
   useEffect(() => {
-    if (!restActive) return;
+    if (!rest) return;
     const tick = () => {
-      const secs = Math.floor((Date.now() - restStartRef.current) / 1000);
-      const remaining = Math.max(0, restDurationRef.current - secs);
+      const secs = Math.floor((Date.now() - rest.startedAt) / 1000);
+      const remaining = Math.max(0, rest.duration - secs);
       setRestRemaining(remaining);
       if (remaining <= 0) {
-        clearInterval(restRef.current);
-        setRestActive(false);
+        setRest(current => (current === rest ? null : current));
         setRestMinimized(false);
       }
     };
     tick();
-    restRef.current = setInterval(tick, 500);
-    return () => clearInterval(restRef.current);
-  }, [restActive]);
+    const id = setInterval(tick, 500);
+    // Recalculate the moment we come back from a lock screen, since background
+    // tabs get their intervals throttled.
+    const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [rest]);
 
-  // On returning from background/lock screen, immediately recalculate both timers
+  // On returning from background/lock screen, immediately recalculate the workout clock
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (workoutStartRef.current) {
-        setElapsed(Math.floor((Date.now() - workoutStartRef.current) / 1000));
-      }
-      if (restStartRef.current) {
-        const secs = Math.floor((Date.now() - restStartRef.current) / 1000);
-        const remaining = Math.max(0, restDurationRef.current - secs);
-        setRestRemaining(remaining);
-        if (remaining <= 0) { setRestActive(false); setRestMinimized(false); }
-      }
+      if (document.visibilityState !== 'visible' || !workoutStartRef.current) return;
+      setElapsed(Math.floor((Date.now() - workoutStartRef.current) / 1000));
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
+
+  useEffect(() => () => clearTimeout(prTimeoutRef.current), []);
 
   // Request push permission and subscribe on mount
   useEffect(() => {
@@ -336,17 +334,13 @@ export default function RunWorkout() {
   }, []);
 
   const startRest = (ex) => {
-    clearInterval(restRef.current);
     const duration = ex.rest_seconds || DEFAULT_REST;
-    restStartRef.current = Date.now();
-    restDurationRef.current = duration;
-    setRestDuration(duration);
+    setRest({ startedAt: Date.now(), duration, exerciseName: ex.exercise_name });
     setRestRemaining(duration);
-    setRestExName(ex.exercise_name);
     setRestMinimized(false);
-    setRestActive(true);
 
     if (pushReadyRef.current) {
+      // Supersedes any rest notification still pending for this user.
       api.post('/push/rest-timer', {
         duration_seconds: duration,
         exercise_name: ex.exercise_name,
@@ -354,11 +348,15 @@ export default function RunWorkout() {
     }
   };
 
+  const cancelRestPush = () => {
+    if (!pushReadyRef.current) return;
+    api.delete('/push/rest-timer').catch(() => {});
+  };
+
   const skipRest = () => {
-    clearInterval(restRef.current);
-    restStartRef.current = null;
-    setRestActive(false);
+    setRest(null);
     setRestMinimized(false);
+    cancelRestPush();
   };
 
   const minimizeRest = () => setRestMinimized(true);
@@ -400,6 +398,15 @@ export default function RunWorkout() {
           weight_kg: current.weight ? Number(current.weight) : null,
         });
       } catch (e) { console.error(e); }
+    } else {
+      // Un-ticking a set has to remove it server-side too, otherwise a mis-tap
+      // stays in the saved workout even though the UI no longer shows it.
+      try {
+        await api.post(`/workouts/${sessionId}/unlog-set`, {
+          session_exercise_id: ex.id,
+          set_number: setNum,
+        });
+      } catch (e) { console.error(e); }
     }
   };
 
@@ -429,6 +436,8 @@ export default function RunWorkout() {
 
   const handleFinish = async () => {
     setFinishing(true);
+    setRest(null);
+    cancelRestPush();
     try {
       const completeBody = { notes: notes.trim() || null };
       if (backfillDate) completeBody.completed_at = backfillDate;
@@ -464,6 +473,8 @@ export default function RunWorkout() {
   };
 
   const handleCancelWorkout = async () => {
+    setRest(null);
+    cancelRestPush();
     try {
       await api.delete(`/workouts/${sessionId}`);
     } catch (err) {
@@ -747,12 +758,12 @@ export default function RunWorkout() {
         </button>
       </div>
 
-      {restActive && !restMinimized && (
+      {rest && !restMinimized && (
         <div className="rest-timer-overlay" onClick={minimizeRest}>
-          <div className="rest-timer-heading">Rest — {restExName}</div>
+          <div className="rest-timer-heading">Rest — {rest.exerciseName}</div>
           <div className="rest-timer-value">{formatTime(restRemaining)}</div>
           <div className="rest-timer-track">
-            <div className="rest-timer-bar" style={{ width: `${(restRemaining / restDuration) * 100}%` }} />
+            <div className="rest-timer-bar" style={{ width: `${(restRemaining / rest.duration) * 100}%` }} />
           </div>
           <div className="rest-timer-hint">Tap to minimise</div>
           <button
@@ -764,12 +775,12 @@ export default function RunWorkout() {
         </div>
       )}
 
-      {restActive && restMinimized && (
+      {rest && restMinimized && (
         <div className="rest-banner" onClick={() => setRestMinimized(false)}>
           <div className="rest-banner-left">
             <span className="rest-banner-label">REST</span>
             <span className="rest-banner-time">{formatTime(restRemaining)}</span>
-            <span className="rest-banner-ex">{restExName}</span>
+            <span className="rest-banner-ex">{rest.exerciseName}</span>
           </div>
           <button
             className="rest-banner-skip"
