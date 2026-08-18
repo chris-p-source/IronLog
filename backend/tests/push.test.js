@@ -44,6 +44,56 @@ test('starting a new rest cancels the notification queued for the old one', asyn
   }
 });
 
+// Ticking five sets off in quick succession must notify once, for the last
+// set — not five times, and not early.
+test('a run of quick set completions produces exactly one notification', async () => {
+  const srv = await pushServer(Array(5).fill(SUBSCRIPTION));
+  try {
+    const t0 = Date.now();
+    for (let i = 0; i < 5; i++) {
+      const res = await srv.request('POST', '/rest-timer', {
+        duration_seconds: 2,
+        exercise_name: `Set ${i + 1}`,
+        rest_started_at: t0 + i * 10,
+      });
+      assert.strictEqual(res.body.scheduled, true);
+    }
+
+    await wait(1200);
+    assert.strictEqual(srv.webpush.sent.length, 0, 'none of the first four may fire');
+
+    await wait(1400);
+    assert.strictEqual(srv.webpush.sent.length, 1, 'exactly one notification');
+    assert.match(srv.webpush.sent[0].payload, /Set 5/, 'and it is for the last set');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('an out-of-order request cannot displace a newer rest', async () => {
+  const srv = await pushServer([SUBSCRIPTION, SUBSCRIPTION]);
+  try {
+    const now = Date.now();
+    await srv.request('POST', '/rest-timer', {
+      duration_seconds: 3, exercise_name: 'Newer', rest_started_at: now,
+    });
+    // A request for an earlier rest, delayed in flight, lands afterwards.
+    const late = await srv.request('POST', '/rest-timer', {
+      duration_seconds: 1, exercise_name: 'Older', rest_started_at: now - 500,
+    });
+    assert.deepStrictEqual(late.body, { scheduled: false, reason: 'superseded' });
+
+    await wait(1500);
+    assert.strictEqual(srv.webpush.sent.length, 0, 'the stale rest must not fire');
+
+    await wait(2000);
+    assert.strictEqual(srv.webpush.sent.length, 1);
+    assert.match(srv.webpush.sent[0].payload, /Newer/);
+  } finally {
+    await srv.close();
+  }
+});
+
 test('skipping rest cancels the queued notification', async () => {
   const srv = await pushServer([SUBSCRIPTION]);
   try {

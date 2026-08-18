@@ -15,13 +15,14 @@ if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
 router.use(auth);
 
 // One pending rest notification per user — starting a new rest (or skipping)
-// cancels whatever was still queued, so a superseded timer never fires early.
+// cancels whatever was still queued, so ticking several sets off in a row
+// notifies once, for the last one, rather than once per set.
 const pendingRestTimers = new Map();
 
 function cancelPendingRest(userId) {
-  const timer = pendingRestTimers.get(userId);
-  if (!timer) return false;
-  clearTimeout(timer);
+  const pending = pendingRestTimers.get(userId);
+  if (!pending) return false;
+  clearTimeout(pending.timer);
   pendingRestTimers.delete(userId);
   return true;
 }
@@ -52,7 +53,7 @@ router.post('/subscribe', async (req, res) => {
 
 // Schedule a rest-complete notification after duration_seconds
 router.post('/rest-timer', async (req, res) => {
-  const { duration_seconds, exercise_name } = req.body;
+  const { duration_seconds, exercise_name, rest_started_at } = req.body;
   if (!duration_seconds || duration_seconds < 1) return res.status(400).json({ error: 'Invalid duration' });
   if (!config.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push not configured' });
 
@@ -71,6 +72,15 @@ router.post('/rest-timer', async (req, res) => {
       tag: 'rest-timer',
     });
 
+    // Ticking sets off quickly fires one request each, and they can arrive out
+    // of order — an older rest must never displace the notification for a newer
+    // one. No await between this check and the set below, so it can't race.
+    const startedAt = Number(rest_started_at) || Date.now();
+    const pending = pendingRestTimers.get(req.user.id);
+    if (pending && pending.startedAt > startedAt) {
+      return res.json({ scheduled: false, reason: 'superseded' });
+    }
+
     cancelPendingRest(req.user.id);
     const timer = setTimeout(async () => {
       pendingRestTimers.delete(req.user.id);
@@ -86,7 +96,7 @@ router.post('/rest-timer', async (req, res) => {
         }
       }
     }, duration_seconds * 1000);
-    pendingRestTimers.set(req.user.id, timer);
+    pendingRestTimers.set(req.user.id, { timer, startedAt });
 
     res.json({ scheduled: true });
   } catch (err) {

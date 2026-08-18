@@ -335,15 +335,18 @@ export default function RunWorkout() {
 
   const startRest = (ex) => {
     const duration = ex.rest_seconds || DEFAULT_REST;
-    setRest({ startedAt: Date.now(), duration, exerciseName: ex.exercise_name });
+    const startedAt = Date.now();
+    setRest({ startedAt, duration, exerciseName: ex.exercise_name });
     setRestRemaining(duration);
     setRestMinimized(false);
 
     if (pushReadyRef.current) {
-      // Supersedes any rest notification still pending for this user.
+      // Supersedes any rest notification still pending, so a run of quickly
+      // ticked sets notifies once — for this rest, the last one started.
       api.post('/push/rest-timer', {
         duration_seconds: duration,
         exercise_name: ex.exercise_name,
+        rest_started_at: startedAt,
       }).catch(() => {});
     }
   };
