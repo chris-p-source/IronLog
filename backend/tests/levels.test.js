@@ -11,13 +11,27 @@ test('a new lifter starts at level 1', () => {
 });
 
 test('the curve matches the published thresholds', () => {
-  // 400 + 100*level per level, accumulated.
+  // 300 + 70*level per level, accumulated.
   assert.strictEqual(levels.xpForLevel(1), 0);
-  assert.strictEqual(levels.xpForLevel(2), 500);
-  assert.strictEqual(levels.xpForLevel(5), 2600);
-  assert.strictEqual(levels.xpForLevel(10), 8100);
-  assert.strictEqual(levels.xpForLevel(25), 39600);
-  assert.strictEqual(levels.xpForLevel(50), 142100);
+  assert.strictEqual(levels.xpForLevel(2), 370);
+  assert.strictEqual(levels.xpForLevel(5), 1900);
+  assert.strictEqual(levels.xpForLevel(10), 5850);
+  assert.strictEqual(levels.xpForLevel(25), 28200);
+  assert.strictEqual(levels.xpForLevel(50), 100450);
+});
+
+// The curve is pitched at a year of training reaching the Veteran band. Four
+// sessions a week plus some tracking is about 480 XP a week.
+test('a year of training lands in the Veteran band', () => {
+  const perWeek = 480;
+  const oneYear = levels.levelProgress(perWeek * 52);
+  assert.ok(oneYear.level >= 21 && oneYear.level <= 26, `one year reached level ${oneYear.level}`);
+  assert.ok(['Veteran', 'Relentless'].includes(oneYear.title), `one year title was ${oneYear.title}`);
+
+  // And there is still a long way to go after that.
+  const twoYears = levels.levelProgress(perWeek * 104);
+  assert.ok(twoYears.level > oneYear.level + 8, 'two years is well clear of one');
+  assert.ok(levels.xpForLevel(60) > perWeek * 52 * 4, 'the top of the ladder is years away');
 });
 
 test('levelForXp inverts xpForLevel exactly at every boundary', () => {
@@ -32,14 +46,14 @@ test('levelForXp inverts xpForLevel exactly at every boundary', () => {
 });
 
 test('progress within a level is reported for the bar', () => {
-  // Level 5 starts at 2600 and level 6 at 3500, so the step is 400 + 100*5.
-  assert.strictEqual(levels.xpForLevel(6) - levels.xpForLevel(5), 900);
+  // Level 5 starts at 1900 and level 6 at 2550, so the step is 300 + 70*5.
+  assert.strictEqual(levels.xpForLevel(6) - levels.xpForLevel(5), 650);
 
-  const p = levels.levelProgress(3050);
+  const p = levels.levelProgress(2225);
   assert.strictEqual(p.level, 5);
-  assert.strictEqual(p.xpIntoLevel, 450);
-  assert.strictEqual(p.xpForNextLevel, 900);
-  assert.strictEqual(p.xpToNextLevel, 450);
+  assert.strictEqual(p.xpIntoLevel, 325);
+  assert.strictEqual(p.xpForNextLevel, 650);
+  assert.strictEqual(p.xpToNextLevel, 325);
   assert.strictEqual(p.percent, 50);
 });
 

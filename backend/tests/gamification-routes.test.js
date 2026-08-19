@@ -38,7 +38,7 @@ test('the level table exposes the curve and the badge catalogue', async () => {
     const { body } = await srv.request('GET', '/levels');
     assert.strictEqual(body.levels[0].level, 1);
     assert.strictEqual(body.levels[0].xp, 0);
-    assert.strictEqual(body.levels[4].xp, 2600, 'level 5 threshold');
+    assert.strictEqual(body.levels[4].xp, 1900, 'level 5 threshold');
     assert.ok(body.badges.length > 0);
     assert.ok(body.badges.every(b => b.id && b.threshold > 0));
   } finally {
@@ -106,7 +106,7 @@ test('another user\'s profile shows their level and earned badges', async () => 
   try {
     const { status, body } = await srv.request('GET', '/user/someone');
     assert.strictEqual(status, 200);
-    assert.strictEqual(body.level, 10, '9000 XP is level 10');
+    assert.strictEqual(body.level, 12, '9000 XP is level 12');
     assert.strictEqual(body.equippedTitle, 'Century Club');
     assert.strictEqual(body.earnedCount, 2);
     assert.ok(body.earnedBadges.some(b => b.id === 'century_workouts'));

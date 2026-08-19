@@ -6,8 +6,13 @@
 //   xp to go from L to L+1 = BASE + STEP * L
 // which makes the lifetime XP needed to *reach* level L a closed form. Both
 // constants are here so the curve can be retuned without touching anything else.
-const BASE = 400;
-const STEP = 100;
+//
+// Calibrated so a year of training lands in the Veteran band. Four sessions a
+// week plus some tracking is around 480 XP a week — roughly 25,000 in a year,
+// which is level 23 — with two years reaching Savage and the top of the ladder
+// still five or six years out.
+const BASE = 300;
+const STEP = 70;
 
 // Titles are the rank you hold at a level. Flair titles, which a user earns
 // from badges and chooses to display, are separate — see badges.js.
