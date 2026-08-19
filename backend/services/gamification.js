@@ -2,6 +2,7 @@ const db = require('../db');
 const levels = require('./levels');
 const badges = require('./badges');
 const points = require('./points');
+const lifts = require('./liftPatterns');
 const { STRENGTH_EXERCISES } = require('../data/exercises');
 
 // Exercise catalogue groups are finer than the muscle groups "Full Coverage"
@@ -57,7 +58,9 @@ async function collectStats(userId) {
        WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND ss.weight_kg > 0`,
       [userId]
     ),
-    // Heaviest single lift per movement pattern, over the most recent bodyweight.
+    // Heaviest competition lift of each kind, plus the most recent bodyweight.
+    // The patterns exclude dumbbell, machine and accessory variants — a 60 kg
+    // dumbbell bench is 60 kg a hand, and a hack squat is not a squat.
     db.query(
       `WITH bw AS (
          SELECT weight_kg FROM user_bodyweights
@@ -66,9 +69,9 @@ async function collectStats(userId) {
        ),
        best AS (
          SELECT
-           MAX(ss.weight_kg) FILTER (WHERE se.exercise_name ILIKE '%bench press%') AS bench,
-           MAX(ss.weight_kg) FILTER (WHERE se.exercise_name ILIKE '%squat%') AS squat,
-           MAX(ss.weight_kg) FILTER (WHERE se.exercise_name ILIKE '%deadlift%') AS deadlift
+           MAX(ss.weight_kg) FILTER (WHERE ${lifts.BENCH('se.exercise_name')}) AS bench,
+           MAX(ss.weight_kg) FILTER (WHERE ${lifts.SQUAT('se.exercise_name')}) AS squat,
+           MAX(ss.weight_kg) FILTER (WHERE ${lifts.DEADLIFT('se.exercise_name')}) AS deadlift
          FROM session_sets ss
          JOIN session_exercises se ON se.id = ss.session_exercise_id
          JOIN workout_sessions ws ON ws.id = se.session_id
@@ -151,6 +154,9 @@ async function collectStats(userId) {
 
   const bodyweight = num(relative.rows[0]?.bodyweight);
   const ratio = (lift) => (bodyweight > 0 ? num(lift) / bodyweight : 0);
+  const bench = num(relative.rows[0]?.bench);
+  const squat = num(relative.rows[0]?.squat);
+  const deadlift = num(relative.rows[0]?.deadlift);
 
   return {
     workouts_total: num(sessions.rows[0].workouts_total),
@@ -160,6 +166,11 @@ async function collectStats(userId) {
     late_workouts: num(sessions.rows[0].late_workouts),
     tonnage_kg: num(tonnage.rows[0].tonnage_kg),
     bodyweight,
+    bench_kg: bench,
+    squat_kg: squat,
+    deadlift_kg: deadlift,
+    // The powerlifting total only means anything once all three are on record.
+    powerlifting_total_kg: (bench > 0 && squat > 0 && deadlift > 0) ? bench + squat + deadlift : 0,
     bench_ratio: ratio(relative.rows[0]?.bench),
     squat_ratio: ratio(relative.rows[0]?.squat),
     deadlift_ratio: ratio(relative.rows[0]?.deadlift),

@@ -251,6 +251,81 @@ test('relative strength is measured against the latest bodyweight', async (t) =>
   assert.ok(earned.includes('deadlift_two_half'));
 });
 
+// The clubs are the badges people will argue about, so what counts as a bench,
+// a squat and a deadlift has to be exact.
+test('accessory and dumbbell variants do not count towards the clubs', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  await logWorkout({ exercises: [
+    // 60kg a hand is not a 120kg bench.
+    { name: 'Dumbbell Bench Press', sets: [{ reps: 5, weight: 120 }] },
+    { name: 'Incline Barbell Bench Press', sets: [{ reps: 5, weight: 110 }] },
+    { name: 'Close-Grip Bench Press', sets: [{ reps: 5, weight: 105 }] },
+    // A hack squat machine is not a squat, nor is a split squat.
+    { name: 'Hack Squat', sets: [{ reps: 5, weight: 200 }] },
+    { name: 'Bulgarian Split Squat', sets: [{ reps: 5, weight: 190 }] },
+    { name: 'Front Squat', sets: [{ reps: 5, weight: 150 }] },
+    // Romanian and stiff-leg deadlifts are a different lift.
+    { name: 'Romanian Deadlift', sets: [{ reps: 5, weight: 220 }] },
+    { name: 'Stiff-Leg Deadlift', sets: [{ reps: 5, weight: 210 }] },
+    { name: 'Trap Bar Deadlift', sets: [{ reps: 5, weight: 230 }] },
+  ] });
+
+  const stats = await gamification.collectStats(userId);
+  assert.strictEqual(stats.bench_kg, 0, 'no competition bench logged');
+  assert.strictEqual(stats.squat_kg, 0, 'no competition squat logged');
+  assert.strictEqual(stats.deadlift_kg, 0, 'no competition deadlift logged');
+  assert.strictEqual(stats.powerlifting_total_kg, 0);
+
+  const earned = badges.qualifyingIds(stats);
+  assert.ok(!earned.some(id => id.startsWith('bench_')), 'no bench club');
+  assert.ok(!earned.some(id => id.startsWith('squat_')), 'no squat club');
+  assert.ok(!earned.some(id => id.startsWith('deadlift_')), 'no deadlift club');
+  assert.ok(!earned.some(id => id.startsWith('total_')), 'no total club');
+});
+
+test('the real lifts earn the plate clubs and the pound total', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  await logWorkout({ exercises: [
+    { name: 'Barbell Bench Press', sets: [{ reps: 5, weight: 90 }, { reps: 1, weight: 100 }] },
+    { name: 'Barbell Back Squat', sets: [{ reps: 1, weight: 180 }] },
+    { name: 'Sumo Deadlift', sets: [{ reps: 1, weight: 200 }] },
+  ] });
+
+  const stats = await gamification.collectStats(userId);
+  assert.strictEqual(stats.bench_kg, 100, 'heaviest bench, not the last one');
+  assert.strictEqual(stats.squat_kg, 180);
+  assert.strictEqual(stats.deadlift_kg, 200, 'sumo counts');
+  assert.strictEqual(stats.powerlifting_total_kg, 480);
+
+  const earned = badges.qualifyingIds(stats);
+  assert.ok(earned.includes('bench_2_plate'), 'two plate club');
+  assert.ok(!earned.includes('bench_3_plate'));
+  assert.ok(earned.includes('squat_4_plate'), 'four plate squat');
+  assert.ok(earned.includes('deadlift_4_plate'));
+  assert.ok(!earned.includes('deadlift_5_plate'));
+  assert.ok(earned.includes('total_1000'), '480kg clears the 1000lb total');
+  assert.ok(!earned.includes('total_1200'));
+});
+
+test('a total needs all three lifts on record', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  // A huge squat and deadlift, but no bench logged at all.
+  await logWorkout({ exercises: [
+    { name: 'Barbell Back Squat', sets: [{ reps: 1, weight: 250 }] },
+    { name: 'Barbell Deadlift', sets: [{ reps: 1, weight: 300 }] },
+  ] });
+
+  const stats = await gamification.collectStats(userId);
+  assert.strictEqual(stats.powerlifting_total_kg, 0, 'not a total until all three exist');
+  assert.ok(!badges.qualifyingIds(stats).includes('total_1000'));
+});
+
 test('no bodyweight logged means no relative strength badges, not a crash', async (t) => {
   if (!await dbReady()) return t.skip('no database available');
   await freshUser();

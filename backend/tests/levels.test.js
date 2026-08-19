@@ -45,12 +45,27 @@ test('progress within a level is reported for the bar', () => {
 
 test('titles are held until the next band is reached', () => {
   assert.strictEqual(levels.titleForLevel(1), 'Newcomer');
-  assert.strictEqual(levels.titleForLevel(4), 'Newcomer');
+  assert.strictEqual(levels.titleForLevel(2), 'Newcomer');
+  assert.strictEqual(levels.titleForLevel(3), 'Rookie');
   assert.strictEqual(levels.titleForLevel(5), 'Regular');
-  assert.strictEqual(levels.titleForLevel(19), 'Seasoned');
-  assert.strictEqual(levels.titleForLevel(20), 'Veteran');
+  assert.strictEqual(levels.titleForLevel(17), 'Seasoned');
+  assert.strictEqual(levels.titleForLevel(21), 'Veteran');
   assert.strictEqual(levels.titleForLevel(50), 'Legend');
-  assert.strictEqual(levels.titleForLevel(500), 'Legend');
+  assert.strictEqual(levels.titleForLevel(500), 'Mythic', 'the last band holds forever');
+});
+
+// Every band should be reachable and the rank should keep moving through the
+// first couple of years, which is roughly levels 10-30.
+test('title bands are ordered and never leave a long gap early on', () => {
+  const froms = levels.TITLES.map(t => t.from);
+  assert.deepStrictEqual(froms, [...froms].sort((a, b) => a - b), 'bands are in order');
+  assert.strictEqual(new Set(froms).size, froms.length, 'no duplicate bands');
+  assert.strictEqual(froms[0], 1, 'a level 1 lifter has a title');
+
+  const early = froms.filter(f => f <= 30);
+  for (let i = 1; i < early.length; i++) {
+    assert.ok(early[i] - early[i - 1] <= 4, `gap at level ${early[i - 1]} is too long`);
+  }
 });
 
 test('junk XP values do not produce a broken level', () => {

@@ -64,6 +64,55 @@ test('a badge already held stays held even if the stat drops', () => {
   assert.strictEqual(evaluated.find(b => b.id === 'bw_bench').earned, true);
 });
 
+test('a plate is 20kg a side on a 20kg bar', () => {
+  assert.strictEqual(badges.plates(1), 60);
+  assert.strictEqual(badges.plates(2), 100, 'two plates is the 100kg bench');
+  assert.strictEqual(badges.plates(3), 140);
+  assert.strictEqual(badges.plates(4), 180);
+  assert.strictEqual(badges.plates(5), 220);
+});
+
+test('the plate clubs sit at the weights they are named after', () => {
+  const at = (id) => badges.BADGES_BY_ID.get(id).threshold;
+  assert.strictEqual(at('bench_2_plate'), 100);
+  assert.strictEqual(at('bench_3_plate'), 140);
+  assert.strictEqual(at('squat_2_plate'), 100);
+  assert.strictEqual(at('squat_4_plate'), 180);
+  assert.strictEqual(at('deadlift_3_plate'), 140);
+  assert.strictEqual(at('deadlift_5_plate'), 220);
+
+  // A 99kg bench is not the club.
+  assert.ok(!badges.qualifyingIds({ bench_kg: 99 }).includes('bench_2_plate'));
+  assert.ok(badges.qualifyingIds({ bench_kg: 100 }).includes('bench_2_plate'));
+});
+
+test('the pound clubs convert to the right kilo totals', () => {
+  assert.strictEqual(badges.lb(1000), 453.6);
+  assert.strictEqual(badges.BADGES_BY_ID.get('total_1000').threshold, 453.6);
+  assert.strictEqual(badges.BADGES_BY_ID.get('total_1200').threshold, 544.3);
+  assert.strictEqual(badges.BADGES_BY_ID.get('total_1500').threshold, 680.4);
+
+  assert.ok(!badges.qualifyingIds({ powerlifting_total_kg: 450 }).includes('total_1000'));
+  const earned = badges.qualifyingIds({ powerlifting_total_kg: 500 });
+  assert.ok(earned.includes('total_1000'));
+  assert.ok(!earned.includes('total_1200'));
+});
+
+test('the ladder keeps going for a couple of years of training', () => {
+  const top = (metric) => Math.max(...badges.BADGES.filter(b => b.metric === metric).map(b => b.threshold));
+  // At four sessions a week, two years is about 400 workouts and 100 weeks.
+  assert.ok(top('workouts_total') >= 500, 'workout tiers outlast two years');
+  assert.ok(top('weeks_trained') >= 104, 'week tiers reach two years');
+  assert.ok(top('tonnage_kg') >= 2000000);
+  assert.ok(top('pr_count') >= 150);
+
+  // Nothing should be a lone tier with no step up from it.
+  const counts = {};
+  for (const b of badges.BADGES) counts[b.metric] = (counts[b.metric] || 0) + 1;
+  const singles = Object.entries(counts).filter(([, n]) => n === 1).map(([m]) => m);
+  assert.deepStrictEqual(singles, [], 'every metric has more than one tier to chase');
+});
+
 test('titles come only from badges that grant one', () => {
   assert.deepStrictEqual(badges.titlesFor([]), []);
   assert.deepStrictEqual(badges.titlesFor(['first_workout']), [], 'no title on that badge');

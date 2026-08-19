@@ -11,15 +11,30 @@ const STEP = 100;
 
 // Titles are the rank you hold at a level. Flair titles, which a user earns
 // from badges and chooses to display, are separate — see badges.js.
+//
+// Bands are closest together through levels 10–30, where a lifter spends their
+// first two years, so the rank keeps moving over that stretch rather than
+// sitting still for months at a time.
 const TITLES = [
   { from: 1, title: 'Newcomer' },
+  { from: 3, title: 'Rookie' },
   { from: 5, title: 'Regular' },
+  { from: 8, title: 'Dedicated' },
   { from: 10, title: 'Committed' },
+  { from: 13, title: 'Grinder' },
   { from: 15, title: 'Seasoned' },
-  { from: 20, title: 'Veteran' },
+  { from: 18, title: 'Hardened' },
+  { from: 21, title: 'Veteran' },
+  { from: 24, title: 'Relentless' },
+  { from: 27, title: 'Battle Worn' },
   { from: 30, title: 'Elite' },
-  { from: 40, title: 'Beast' },
+  { from: 34, title: 'Savage' },
+  { from: 38, title: 'Beast' },
+  { from: 42, title: 'Titan' },
+  { from: 46, title: 'Juggernaut' },
   { from: 50, title: 'Legend' },
+  { from: 55, title: 'Immortal' },
+  { from: 60, title: 'Mythic' },
 ];
 
 // Total XP needed to reach a level: sum of every step below it.
