@@ -286,26 +286,14 @@ router.get('/:username', async (req, res) => {
 });
 
 async function getUserStats(userId) {
-  const [workouts, strengthPts, cardioPts, lastWorkout, goldMedals] = await Promise.all([
+  // The displayed total is the XP total, from the one definition in
+  // services/points — it counts tracking days as well as training.
+  const [workouts, totalPoints, lastWorkout, goldMedals] = await Promise.all([
     db.query(
       'SELECT COUNT(*) as total FROM workout_sessions WHERE user_id = $1 AND completed_at IS NOT NULL',
       [userId]
     ),
-    db.query(
-      `SELECT COALESCE(SUM(ss.reps_completed), 0) as pts
-       FROM session_sets ss
-       JOIN session_exercises se ON se.id = ss.session_exercise_id
-       JOIN workout_sessions ws ON ws.id = se.session_id
-       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL`,
-      [userId]
-    ),
-    db.query(
-      `SELECT COALESCE(SUM(se.actual_duration_minutes * 2), 0) as pts
-       FROM session_exercises se
-       JOIN workout_sessions ws ON ws.id = se.session_id
-       WHERE ws.user_id = $1 AND ws.completed_at IS NOT NULL AND se.exercise_type = 'cardio'`,
-      [userId]
-    ),
+    lifetimeXp(userId),
     db.query(
       'SELECT completed_at FROM workout_sessions WHERE user_id = $1 AND completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 1',
       [userId]
@@ -313,8 +301,6 @@ async function getUserStats(userId) {
     getGoldMedals(userId),
   ]);
 
-  // Lifetime points are the XP total, so the level costs no extra query.
-  const totalPoints = Math.round(parseFloat(strengthPts.rows[0].pts) + parseFloat(cardioPts.rows[0].pts));
   const { level, title } = levelProgress(totalPoints);
 
   return {

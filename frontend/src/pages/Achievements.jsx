@@ -44,6 +44,16 @@ function LevelCard({ profile }) {
         <span>{profile.xpIntoLevel.toLocaleString()} / {profile.xpForNextLevel.toLocaleString()}</span>
         <span>{profile.xpToNextLevel.toLocaleString()} XP to level {profile.level + 1}</span>
       </div>
+
+      {/* Where the XP came from — otherwise nobody discovers that weighing in
+          and tracking meals earn any. */}
+      {profile.breakdown && (
+        <div className="level-breakdown">
+          <span><strong>{profile.breakdown.training.toLocaleString()}</strong> training</span>
+          <span className="level-breakdown-dot">·</span>
+          <span><strong>{profile.breakdown.tracking.toLocaleString()}</strong> tracking</span>
+        </div>
+      )}
     </div>
   );
 }

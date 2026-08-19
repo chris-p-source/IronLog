@@ -44,8 +44,10 @@ const BADGES = [
   { id: 'weekly_champion', name: 'Weekly Champion', description: 'Top the weekly leaderboard', category: 'Social', tier: 'gold', metric: 'gold_medals', threshold: 1, title: 'Champion' },
   { id: 'local_legend', name: 'Local Legend', description: 'Reach 10 followers', category: 'Social', tier: 'silver', metric: 'followers', threshold: 10 },
 
-  // --- Nutrition ---
-  { id: 'macro_tracker', name: 'Macro Tracker', description: 'Log your food on 30 different days', category: 'Nutrition', tier: 'silver', metric: 'nutrition_days', threshold: 30 },
+  // --- Tracking (the habits that earn XP outside the gym) ---
+  { id: 'macro_tracker', name: 'Macro Tracker', description: 'Log your food on 30 different days', category: 'Tracking', tier: 'silver', metric: 'nutrition_days', threshold: 30 },
+  { id: 'nutrition_100', name: 'Diet Dialled In', description: 'Log your food on 100 different days', category: 'Tracking', tier: 'gold', metric: 'nutrition_days', threshold: 100, title: 'Meal Prepped' },
+  { id: 'weigh_ins_30', name: 'On the Scales', description: 'Log your bodyweight on 30 different days', category: 'Tracking', tier: 'bronze', metric: 'weigh_in_days', threshold: 30 },
 
   // --- Timing ---
   { id: 'early_bird', name: 'Early Bird', description: 'Finish a workout before 6am', category: 'Dedication', tier: 'bronze', metric: 'early_workouts', threshold: 1, title: 'Early Bird' },

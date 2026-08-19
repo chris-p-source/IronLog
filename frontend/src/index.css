@@ -3528,3 +3528,17 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   font-size: 11.5px;
   color: var(--text-secondary);
 }
+
+.level-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.level-breakdown strong { color: var(--text-primary); }
+.level-breakdown-dot { color: var(--text-muted); }

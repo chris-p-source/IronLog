@@ -90,6 +90,94 @@ test('XP is reps plus double cardio minutes, matching the leaderboard', async (t
   assert.strictEqual(await points.lifetimeXp(userId), 78);
 });
 
+test('weighing in and tracking food earn XP per day, not per entry', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  // Three weigh-ins on three days: 3 * 10.
+  await db.query(
+    `INSERT INTO user_bodyweights (user_id, weight_kg, logged_at)
+     VALUES ($1, 82, CURRENT_DATE), ($1, 82.4, CURRENT_DATE - 1), ($1, 81.8, CURRENT_DATE - 2)`,
+    [userId]
+  );
+  assert.strictEqual(await points.lifetimeXp(userId), 30);
+
+  // One day of real eating: 25, regardless of how many entries make it up.
+  for (const meal of ['breakfast', 'lunch', 'dinner', 'snack']) {
+    await db.query(
+      `INSERT INTO food_logs (user_id, logged_date, meal_type, food_name, calories)
+       VALUES ($1, CURRENT_DATE, $2, 'Food', 400)`,
+      [userId, meal]
+    );
+  }
+  assert.strictEqual(await points.lifetimeXp(userId), 55, 'four entries on one day is one tracked day');
+
+  const stats = await gamification.collectStats(userId);
+  assert.strictEqual(stats.weigh_in_days, 3);
+  assert.strictEqual(stats.nutrition_days, 1);
+});
+
+test('a token food entry does not count as a tracked day', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  // A single small entry: neither two entries nor 500 calories.
+  await db.query(
+    `INSERT INTO food_logs (user_id, logged_date, meal_type, food_name, calories)
+     VALUES ($1, CURRENT_DATE, 'snack', 'Apple', 90)`,
+    [userId]
+  );
+  assert.strictEqual(await points.lifetimeXp(userId), 0);
+  assert.strictEqual((await gamification.collectStats(userId)).nutrition_days, 0);
+
+  // A second entry the same day makes it a real day.
+  await db.query(
+    `INSERT INTO food_logs (user_id, logged_date, meal_type, food_name, calories)
+     VALUES ($1, CURRENT_DATE, 'lunch', 'Chicken and rice', 620)`,
+    [userId]
+  );
+  assert.strictEqual(await points.lifetimeXp(userId), 25);
+
+  // One substantial entry alone also counts.
+  await db.query(
+    `INSERT INTO food_logs (user_id, logged_date, meal_type, food_name, calories)
+     VALUES ($1, CURRENT_DATE - 1, 'dinner', 'Big dinner', 900)`,
+    [userId]
+  );
+  assert.strictEqual(await points.lifetimeXp(userId), 50);
+});
+
+test('tracking XP adds to training XP rather than replacing it', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  await logWorkout({ exercises: [
+    { name: 'Barbell Bench Press', sets: [{ reps: 10, weight: 60 }] },
+    { name: 'Outdoor Running', type: 'cardio', minutes: 30 },
+  ] });
+  await db.query('INSERT INTO user_bodyweights (user_id, weight_kg, logged_at) VALUES ($1, 82, CURRENT_DATE)', [userId]);
+
+  // 10 reps + 60 cardio + 10 weigh-in
+  assert.strictEqual(await points.lifetimeXp(userId), 80);
+});
+
+test('tracking badges are earned from the days that earned XP', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+
+  for (let day = 0; day < 30; day++) {
+    await db.query(
+      'INSERT INTO user_bodyweights (user_id, weight_kg, logged_at) VALUES ($1, 82, CURRENT_DATE - $2::int)',
+      [userId, day]
+    );
+  }
+
+  const stats = await gamification.collectStats(userId);
+  assert.strictEqual(stats.weigh_in_days, 30);
+  assert.ok(badges.qualifyingIds(stats).includes('weigh_ins_30'));
+  assert.strictEqual(await points.lifetimeXp(userId), 300);
+});
+
 test('an unfinished workout counts for nothing', async (t) => {
   if (!await dbReady()) return t.skip('no database available');
   await freshUser();

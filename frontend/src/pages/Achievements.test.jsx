@@ -20,6 +20,7 @@ const PROFILE = {
   totalBadges: 4,
   availableTitles: ['Century Club', 'Early Bird'],
   equippedTitle: 'Century Club',
+  breakdown: { training: 8200, tracking: 800 },
   badges: [
     { id: 'first_workout', name: 'First Rep', description: 'Complete your first workout', category: 'Consistency', tier: 'bronze', threshold: 1, value: 1, earned: true, percent: 100 },
     { id: 'century_workouts', name: 'Century Club', description: 'Complete 100 workouts', category: 'Consistency', tier: 'gold', threshold: 100, value: 100, earned: true, percent: 100, title: 'Century Club' },
@@ -47,6 +48,17 @@ describe('Achievements', () => {
     expect(container.querySelector('.level-card-xp').textContent).toBe('9,000 XP');
     expect(container.querySelector('.level-progress-fill').style.width).toBe('64%');
     expect(screen.getByText(/500 XP to level 11/)).toBeTruthy();
+  });
+
+  it('shows where the XP came from, so tracking is discoverable', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    const breakdown = container.querySelector('.level-breakdown').textContent;
+    expect(breakdown).toContain('8,200');
+    expect(breakdown).toContain('training');
+    expect(breakdown).toContain('800');
+    expect(breakdown).toContain('tracking');
   });
 
   it('shows progress towards badges that are not yet earned', async () => {

@@ -126,7 +126,13 @@ async function collectStats(userId) {
       [userId]
     ),
     db.query('SELECT COUNT(*) AS followers FROM followers WHERE following_id = $1', [userId]),
-    db.query('SELECT COUNT(DISTINCT logged_date) AS nutrition_days FROM food_logs WHERE user_id = $1', [userId]),
+    // The same definitions XP pays out on, so a badge counts the days that
+    // actually earned something.
+    db.query(
+      `SELECT ${points.NUTRITION_DAYS('$1')} AS nutrition_days,
+              ${points.WEIGH_IN_DAYS('$1')} AS weigh_in_days`,
+      [userId]
+    ),
   ]);
 
   const goldMedals = await points.getGoldMedals(userId);
@@ -166,6 +172,7 @@ async function collectStats(userId) {
     gold_medals: goldMedals,
     followers: num(social.rows[0].followers),
     nutrition_days: num(nutrition.rows[0].nutrition_days),
+    weigh_in_days: num(nutrition.rows[0].weigh_in_days),
   };
 }
 
@@ -207,7 +214,9 @@ async function syncAwards(userId, stats) {
 
 // Everything the profile and achievements screens need.
 async function getProfile(userId) {
-  const [xp, stats] = await Promise.all([points.lifetimeXp(userId), collectStats(userId)]);
+  const [xp, stats, breakdown] = await Promise.all([
+    points.lifetimeXp(userId), collectStats(userId), points.xpBreakdown(userId),
+  ]);
   const newlyEarned = await syncAwards(userId, stats);
   const earned = await earnedIds(userId);
 
@@ -217,6 +226,7 @@ async function getProfile(userId) {
 
   return {
     ...levels.levelProgress(xp),
+    breakdown,
     badges: badges.evaluate(stats, earned),
     earnedCount: earned.length,
     totalBadges: badges.BADGES.length,
