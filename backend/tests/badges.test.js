@@ -122,6 +122,38 @@ test('titles come only from badges that grant one', () => {
   assert.deepStrictEqual(many, ['Century Club', 'Early Bird']);
 });
 
+test('rarity follows the tier of the badge that granted the title', () => {
+  assert.strictEqual(badges.rarityOf('Early Bird'), 'common', 'bronze badge');
+  assert.strictEqual(badges.rarityOf('Century Club'), 'rare', 'silver badge');
+  assert.strictEqual(badges.rarityOf('Year of Iron'), 'epic', 'gold badge');
+  assert.strictEqual(badges.rarityOf('Not A Title'), null);
+});
+
+test('the hardest titles are legendary rather than merely gold', () => {
+  for (const title of ['Mountain Mover', 'Elite Total', 'Dynasty', 'Triple Pull', 'Five Plate Puller', 'Marathon']) {
+    assert.strictEqual(badges.rarityOf(title), 'legendary', title);
+  }
+  // Legendary is meant to stay scarce.
+  const all = [...badges.TITLE_RARITY.values()];
+  const legendary = all.filter(r => r === 'legendary').length;
+  assert.ok(legendary / all.length < 0.3, 'legendary should be a minority of titles');
+});
+
+test('every flair title has a rarity, and only known rarities are used', () => {
+  const valid = new Set(badges.RARITY_ORDER);
+  for (const badge of badges.BADGES.filter(b => b.title)) {
+    const rarity = badges.rarityOf(badge.title);
+    assert.ok(valid.has(rarity), `${badge.title} has rarity ${rarity}`);
+  }
+});
+
+test('the title picker lists the rarest first', () => {
+  const earned = ['early_bird', 'tonnage_2000', 'century_workouts', 'year_of_iron'];
+  const listed = badges.titlesWithRarity(earned);
+  assert.deepStrictEqual(listed.map(t => t.rarity), ['legendary', 'epic', 'rare', 'common']);
+  assert.strictEqual(listed[0].title, 'Mountain Mover');
+});
+
 test('missing stats are treated as zero rather than crashing', () => {
   for (const stats of [null, undefined, {}, { workouts_total: null }, { workouts_total: 'abc' }]) {
     const evaluated = badges.evaluate(stats, []);

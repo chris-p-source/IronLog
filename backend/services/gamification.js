@@ -201,6 +201,23 @@ async function weeksWithTwoPlus(userId) {
   return num(result.rows[0].weeks);
 }
 
+// The title a user is displaying, with its rarity — null unless they still
+// hold the badge that granted it.
+async function equippedTitle(userId) {
+  const row = await db.query('SELECT equipped_title FROM users WHERE id = $1', [userId]);
+  const title = row.rows[0]?.equipped_title;
+  if (!title) return null;
+
+  const badge = badges.BADGES.find(b => b.title === title);
+  if (!badge) return null;
+
+  const held = await db.query(
+    'SELECT 1 FROM user_awards WHERE user_id = $1 AND badge_id = $2',
+    [userId, badge.id]
+  );
+  return held.rows.length > 0 ? { title, rarity: badges.rarityOf(title) } : null;
+}
+
 async function earnedIds(userId) {
   const result = await db.query('SELECT badge_id FROM user_awards WHERE user_id = $1', [userId]);
   return result.rows.map(r => r.badge_id);
@@ -234,6 +251,7 @@ async function getProfile(userId) {
   const user = await db.query('SELECT equipped_title FROM users WHERE id = $1', [userId]);
   const availableTitles = badges.titlesFor(earned);
   const equipped = user.rows[0]?.equipped_title;
+  const titles = badges.titlesWithRarity(earned);
 
   return {
     ...levels.levelProgress(xp),
@@ -244,8 +262,10 @@ async function getProfile(userId) {
     newlyEarned,
     stats,
     availableTitles,
+    titles,
     // A title stays displayed only while its badge is still held.
     equippedTitle: availableTitles.includes(equipped) ? equipped : null,
+    equippedRarity: availableTitles.includes(equipped) ? badges.rarityOf(equipped) : null,
   };
 }
 
@@ -265,4 +285,4 @@ async function recordWorkout(userId, xpBefore) {
   };
 }
 
-module.exports = { collectStats, syncAwards, getProfile, recordWorkout, earnedIds, COVERAGE_BY_EXERCISE };
+module.exports = { collectStats, syncAwards, getProfile, recordWorkout, earnedIds, equippedTitle, COVERAGE_BY_EXERCISE };

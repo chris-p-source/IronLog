@@ -3,6 +3,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { getGoldMedalsMap, lifetimeXpMap } = require('../services/points');
 const { levelProgress } = require('../services/levels');
+const { rarityOf } = require('../services/badges');
 
 router.use(auth);
 
@@ -47,7 +48,7 @@ async function withLevels(rows) {
   const xpMap = await lifetimeXpMap(rows.map(r => r.id));
   return rows.map(r => {
     const { level, title } = levelProgress(xpMap[r.id] || 0);
-    return { ...r, level, rank_title: title };
+    return { ...r, level, rank_title: title, title_rarity: rarityOf(r.equipped_title) };
   });
 }
 

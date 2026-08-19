@@ -3542,3 +3542,85 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 
 .level-breakdown strong { color: var(--text-primary); }
 .level-breakdown-dot { color: var(--text-muted); }
+
+/* ============ Flair titles, drawn by rarity ============ */
+
+.flair {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.flair-sm { padding: 1px 7px; font-size: 10.5px; }
+.flair-md { padding: 2px 10px; font-size: 12px; }
+.flair-lg { padding: 4px 14px; font-size: 15px; letter-spacing: 1px; }
+
+/* Common — a plain outline, no glow. Most people will have several. */
+.flair-common {
+  border-color: var(--border-accent);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Rare — cool steel blue. */
+.flair-rare {
+  border-color: #5b9dd9;
+  color: #8fc4f0;
+  background: rgba(91, 157, 217, 0.1);
+  box-shadow: 0 0 8px rgba(91, 157, 217, 0.25);
+}
+
+/* Epic — gold, and starting to draw the eye. */
+.flair-epic {
+  border-color: var(--warning);
+  color: #ffce5c;
+  background: rgba(255, 170, 0, 0.12);
+  box-shadow: 0 0 12px rgba(255, 170, 0, 0.3);
+  text-shadow: 0 0 8px rgba(255, 170, 0, 0.45);
+}
+
+/* Legendary — the top rung of the hardest ladders. A moving gradient border
+   and a pulse, so it reads as different in kind rather than just brighter. */
+.flair-legendary {
+  position: relative;
+  border-color: transparent;
+  color: #fff2e0;
+  background:
+    linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+    linear-gradient(115deg, var(--accent), var(--accent-secondary), #ffd76e, var(--accent-secondary), var(--accent)) border-box;
+  background-size: auto, 300% 100%;
+  border: 1.5px solid transparent;
+  text-shadow: 0 0 10px rgba(255, 140, 60, 0.7);
+  animation: flair-sweep 6s linear infinite, flair-pulse 3s ease-in-out infinite;
+}
+
+@keyframes flair-sweep {
+  to { background-position: 0 0, 300% 0; }
+}
+
+@keyframes flair-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(230, 48, 48, 0.35); }
+  50%      { box-shadow: 0 0 20px rgba(255, 107, 0, 0.6); }
+}
+
+/* Motion is decoration here — the gradient still reads without it. */
+@media (prefers-reduced-motion: reduce) {
+  .flair-legendary {
+    animation: none;
+    box-shadow: 0 0 16px rgba(255, 107, 0, 0.5);
+  }
+}
+
+/* Rarity carries into the title picker, so you can see what you are choosing. */
+.title-chip.flair-rare.active { border-color: #5b9dd9; color: #8fc4f0; background: rgba(91, 157, 217, 0.14); }
+.title-chip.flair-epic.active { border-color: var(--warning); color: #ffce5c; }
+
+.user-profile-flair { margin-top: 9px; }
+.level-card-flair-row { margin-top: 4px; }
+.lb-flair-row { margin-top: 3px; }

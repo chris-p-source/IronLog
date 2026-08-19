@@ -19,7 +19,12 @@ const PROFILE = {
   earnedCount: 2,
   totalBadges: 4,
   availableTitles: ['Century Club', 'Early Bird'],
+  titles: [
+    { title: 'Century Club', rarity: 'epic' },
+    { title: 'Early Bird', rarity: 'common' },
+  ],
   equippedTitle: 'Century Club',
+  equippedRarity: 'epic',
   breakdown: { training: 8200, tracking: 800 },
   badges: [
     { id: 'first_workout', name: 'First Rep', description: 'Complete your first workout', category: 'Consistency', tier: 'bronze', threshold: 1, value: 1, earned: true, percent: 100 },
@@ -103,6 +108,31 @@ describe('Achievements', () => {
     expect(names).toEqual(['500 Tonnes']);
   });
 
+  it('draws a rare title more loudly than a common one', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    // The equipped title on the level card carries its rarity.
+    expect(container.querySelector('.level-card-flair-row .flair-epic')).toBeTruthy();
+
+    // And the picker shows each title at its own rarity.
+    const chips = [...container.querySelectorAll('.title-chip')];
+    expect(chips.find(c => c.textContent.includes('Century Club')).className).toContain('flair-epic');
+    expect(chips.find(c => c.textContent.includes('Early Bird')).className).toContain('flair-common');
+  });
+
+  it('changes the glow when a different rarity is equipped', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: /Early Bird/ }));
+    await flush();
+
+    const flair = container.querySelector('.level-card-flair-row .flair');
+    expect(flair.className).toContain('flair-common');
+    expect(flair.className).not.toContain('flair-epic');
+  });
+
   it('equips a title and saves it', async () => {
     const { container } = render(<Achievements />);
     await flush();
@@ -128,7 +158,7 @@ describe('Achievements', () => {
   });
 
   it('tells a user with no titles how to get one', async () => {
-    api.get.mockResolvedValue({ data: { ...PROFILE, availableTitles: [], equippedTitle: null } });
+    api.get.mockResolvedValue({ data: { ...PROFILE, availableTitles: [], titles: [], equippedTitle: null } });
     const { container } = render(<Achievements />);
     await flush();
 

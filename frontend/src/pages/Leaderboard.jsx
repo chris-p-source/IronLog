@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trophy, Dumbbell, Heart, Zap, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import FlairTitle from '../components/FlairTitle';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -60,7 +61,9 @@ function LeaderboardList({ rows, valueKey, unit, myId, onUserClick }) {
                 {isMe && <span className="lb-you-badge">YOU</span>}
               </div>
               {row.equipped_title && (
-                <div className="lb-flair">{row.equipped_title}</div>
+                <div className="lb-flair-row">
+                  <FlairTitle title={row.equipped_title} rarity={row.title_rarity} size="sm" />
+                </div>
               )}
               {row.gold_medals > 0 && (
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>

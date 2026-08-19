@@ -4,6 +4,7 @@ import { ArrowLeft, Lock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import FlairTitle from '../components/FlairTitle';
 
 function shortDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -163,6 +164,11 @@ export default function UserProfile() {
           <div className="user-profile-level">
             <span className="user-profile-level-num">LVL {profile.level}</span>
             <span className="user-profile-level-title">{profile.rank_title}</span>
+          </div>
+        )}
+        {profile.equipped_title && (
+          <div className="user-profile-flair">
+            <FlairTitle title={profile.equipped_title} rarity={profile.title_rarity} size="lg" />
           </div>
         )}
         <div className="user-profile-since">Member since {formatJoinDate(profile.created_at)}</div>

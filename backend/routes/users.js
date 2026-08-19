@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { getGoldMedals, lifetimeXp } = require('../services/points');
+const { equippedTitle } = require('../services/gamification');
 const { levelProgress } = require('../services/levels');
 
 router.use(auth);
@@ -288,7 +289,7 @@ router.get('/:username', async (req, res) => {
 async function getUserStats(userId) {
   // The displayed total is the XP total, from the one definition in
   // services/points — it counts tracking days as well as training.
-  const [workouts, totalPoints, lastWorkout, goldMedals] = await Promise.all([
+  const [workouts, totalPoints, lastWorkout, goldMedals, flair] = await Promise.all([
     db.query(
       'SELECT COUNT(*) as total FROM workout_sessions WHERE user_id = $1 AND completed_at IS NOT NULL',
       [userId]
@@ -299,6 +300,7 @@ async function getUserStats(userId) {
       [userId]
     ),
     getGoldMedals(userId),
+    equippedTitle(userId),
   ]);
 
   const { level, title } = levelProgress(totalPoints);
@@ -310,6 +312,8 @@ async function getUserStats(userId) {
     gold_medals: goldMedals,
     level,
     rank_title: title,
+    equipped_title: flair?.title || null,
+    title_rarity: flair?.rarity || null,
   };
 }
 

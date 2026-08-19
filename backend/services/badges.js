@@ -117,6 +117,34 @@ const BADGES = [
 
 const BADGES_BY_ID = new Map(BADGES.map(b => [b.id, b]));
 
+// How rare a flair title is, which is what decides how loudly it is drawn on a
+// profile. Rarity follows the tier of the badge that granted it, except for the
+// handful marked below: the top rung of the hardest ladders, where someone has
+// done something most lifters never will.
+const LEGENDARY_TITLES = new Set([
+  'Mountain Mover',     // 2,000 tonnes lifted
+  'Elite Total',        // a 1500 lb total
+  'Dynasty',            // 25 weekly wins
+  'Triple Pull',        // 3x bodyweight deadlift
+  'Five Plate Puller',  // a 220 kg deadlift
+  'Marathon',           // 42.2 km in one session
+  'Two Years Deep',     // 104 weeks trained
+  'Five Hundred Club',  // 500 workouts
+]);
+
+const TIER_RARITY = { bronze: 'common', silver: 'rare', gold: 'epic' };
+
+const TITLE_RARITY = new Map(
+  BADGES.filter(b => b.title).map(b => [
+    b.title,
+    LEGENDARY_TITLES.has(b.title) ? 'legendary' : (TIER_RARITY[b.tier] || 'common'),
+  ])
+);
+
+function rarityOf(title) {
+  return TITLE_RARITY.get(title) || null;
+}
+
 // The muscle groups "Full Coverage" asks for. Arms and legs each count once, so
 // the badge rewards a balanced week rather than a specific split.
 const COVERAGE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'];
@@ -161,7 +189,15 @@ function titlesFor(earnedIds = []) {
     .map(badge => badge.title);
 }
 
+// The same titles with their rarity, rarest first, for the picker.
+const RARITY_ORDER = ['legendary', 'epic', 'rare', 'common'];
+function titlesWithRarity(earnedIds = []) {
+  return titlesFor(earnedIds)
+    .map(title => ({ title, rarity: rarityOf(title) }))
+    .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+}
+
 module.exports = {
   BADGES, BADGES_BY_ID, COVERAGE_GROUPS, evaluate, qualifyingIds, titlesFor, isEarned,
-  plates, lb, BAR_KG, PLATE_KG,
+  plates, lb, BAR_KG, PLATE_KG, rarityOf, titlesWithRarity, TITLE_RARITY, RARITY_ORDER,
 };

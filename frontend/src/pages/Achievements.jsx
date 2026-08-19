@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Lock, Check, Sparkles } from 'lucide-react';
 import api from '../api';
+import FlairTitle from '../components/FlairTitle';
 
 const TIER_COLOUR = {
   bronze: '#c07a3e',
@@ -31,7 +32,9 @@ function LevelCard({ profile }) {
         <div className="level-card-titles">
           <div className="level-card-title">{profile.title}</div>
           {profile.equippedTitle && (
-            <div className="level-card-flair">{profile.equippedTitle}</div>
+            <div className="level-card-flair-row">
+              <FlairTitle title={profile.equippedTitle} rarity={profile.equippedRarity} size="md" />
+            </div>
           )}
           <div className="level-card-xp">{profile.xp.toLocaleString()} XP</div>
         </div>
@@ -103,10 +106,10 @@ function TitlePicker({ titles, equipped, onPick, saving }) {
       >
         None
       </button>
-      {titles.map(title => (
+      {titles.map(({ title, rarity }) => (
         <button
           key={title}
-          className={`title-chip${equipped === title ? ' active' : ''}`}
+          className={`title-chip flair-${rarity}${equipped === title ? ' active' : ''}`}
           onClick={() => onPick(title)}
           disabled={saving}
         >
@@ -133,12 +136,14 @@ export default function Achievements() {
 
   const pickTitle = async (title) => {
     setSaving(true);
-    const previous = profile.equippedTitle;
-    setProfile(p => ({ ...p, equippedTitle: title }));
+    const previous = { title: profile.equippedTitle, rarity: profile.equippedRarity };
+    // Rarity travels with the title, or the card keeps the old glow.
+    const rarity = profile.titles?.find(t => t.title === title)?.rarity || null;
+    setProfile(p => ({ ...p, equippedTitle: title, equippedRarity: rarity }));
     try {
       await api.put('/gamification/title', { title });
     } catch {
-      setProfile(p => ({ ...p, equippedTitle: previous }));
+      setProfile(p => ({ ...p, equippedTitle: previous.title, equippedRarity: previous.rarity }));
     } finally {
       setSaving(false);
     }
@@ -168,7 +173,7 @@ export default function Achievements() {
         <Sparkles size={14} style={{ marginLeft: 6, color: 'var(--warning)' }} />
       </div>
       <TitlePicker
-        titles={profile.availableTitles}
+        titles={profile.titles || []}
         equipped={profile.equippedTitle}
         onPick={pickTitle}
         saving={saving}
