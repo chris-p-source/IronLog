@@ -3151,3 +3151,380 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
   align-items: center;
   gap: 4px;
 }
+
+/* ============ Gamification: levels, badges, titles ============ */
+
+.level-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 14px;
+  padding: 18px 16px 14px;
+  margin-bottom: 22px;
+}
+
+.level-card-glow {
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.level-card-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.level-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 66px;
+  height: 66px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-dim);
+}
+
+.level-ring-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.level-ring-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.level-card-titles { min-width: 0; }
+
+.level-card-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.level-card-flair {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border: 1px solid var(--warning);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+.level-card-xp {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.level-progress-track,
+.badge-progress-track,
+.summary-xp-track {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.level-progress-fill,
+.summary-xp-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  transition: width 0.5s ease;
+}
+
+.level-progress-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- Titles --- */
+
+.title-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  border: 1px solid var(--border-accent);
+  border-radius: 20px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.title-chip.active {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: rgba(255, 170, 0, 0.1);
+}
+
+.title-chip:disabled { opacity: 0.6; }
+
+.titles-empty {
+  padding: 14px;
+  border: 1px dashed var(--border-accent);
+  border-radius: 11px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* --- Badges --- */
+
+.badge-filter-row {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+}
+
+.badge-filter-row::-webkit-scrollbar { display: none; }
+
+.badge-filter {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.badge-filter.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.badge-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.badge-card {
+  display: flex;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  opacity: 0.75;
+}
+
+.badge-card.earned {
+  opacity: 1;
+  border-color: var(--border-accent);
+}
+
+.badge-medal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid var(--border-accent);
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+
+.badge-body { min-width: 0; flex: 1; }
+
+.badge-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-desc {
+  margin-top: 1px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.badge-card .badge-progress-track { margin-top: 8px; height: 5px; }
+
+.badge-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--text-secondary);
+}
+
+.badge-progress-text {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.badge-unlocks {
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+/* --- Level on profiles and the leaderboard --- */
+
+.user-profile-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.user-profile-level-num {
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.user-profile-level-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.lb-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.lb-flair {
+  margin-top: 1px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+/* --- Workout summary --- */
+
+.summary-xp {
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--border-accent);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.summary-xp.levelled {
+  border-color: var(--warning);
+  background: rgba(255, 170, 0, 0.08);
+}
+
+.summary-levelup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--warning);
+}
+
+.summary-xp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+
+.summary-xp-gain {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--success);
+}
+
+.summary-xp-next { font-size: 11.5px; color: var(--text-secondary); }
+
+.summary-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.summary-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-radius: 9px;
+  background: rgba(255, 170, 0, 0.08);
+  color: var(--warning);
+  text-align: left;
+}
+
+.summary-badge-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.summary-badge-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}

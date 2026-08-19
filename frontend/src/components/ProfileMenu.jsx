@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, LogOut, ChevronRight, User, Download } from 'lucide-react';
+import { Lock, LogOut, ChevronRight, User, Download, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -134,6 +134,12 @@ export default function ProfileMenu({ onClose }) {
             <div className="profile-menu-row" onClick={() => setView('password')}>
               <div className="profile-menu-row-icon"><Lock size={18} /></div>
               <div className="profile-menu-row-title" style={{ flex: 1 }}>Change Password</div>
+              <ChevronRight size={16} color="var(--text-muted)" />
+            </div>
+
+            <div className="profile-menu-row" onClick={() => { navigate('/achievements'); onClose(); }}>
+              <div className="profile-menu-row-icon"><Trophy size={18} /></div>
+              <div className="profile-menu-row-title" style={{ flex: 1 }}>Achievements</div>
               <ChevronRight size={16} color="var(--text-muted)" />
             </div>
 

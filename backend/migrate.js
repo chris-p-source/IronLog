@@ -109,6 +109,18 @@ async function migrate() {
       exercise_name VARCHAR(100)
     );
 
+    -- Badges a user has earned. Stamped once and kept: a bodyweight gain must
+    -- not take away a lift they actually made.
+    CREATE TABLE IF NOT EXISTS user_awards (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      badge_id VARCHAR(50) NOT NULL,
+      earned_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, badge_id)
+    );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_title VARCHAR(50);
+
     CREATE TABLE IF NOT EXISTS user_bodyweights (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

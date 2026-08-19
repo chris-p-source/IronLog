@@ -55,9 +55,13 @@ function LeaderboardList({ rows, valueKey, unit, myId, onUserClick }) {
             <Avatar user={row} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="lb-username">
+                {row.level > 1 && <span className="lb-level">{row.level}</span>}
                 {row.username}
                 {isMe && <span className="lb-you-badge">YOU</span>}
               </div>
+              {row.equipped_title && (
+                <div className="lb-flair">{row.equipped_title}</div>
+              )}
               {row.gold_medals > 0 && (
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>
                   🥇 {row.gold_medals} gold medal{row.gold_medals !== 1 ? 's' : ''}

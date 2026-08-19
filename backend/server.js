@@ -19,6 +19,7 @@ app.use('/api/exercises', require('./routes/exercises'));
 app.use('/api/bodyweight', require('./routes/bodyweight'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/nutrition', require('./routes/nutrition'));
+app.use('/api/gamification', require('./routes/gamification'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', registerEnabled: config.REGISTER_ENABLED }));
 
 if (config.NODE_ENV === 'production') {

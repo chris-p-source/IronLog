@@ -2,6 +2,8 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { getGoldMedals, lifetimeXp } = require('../services/points');
+const { levelProgress } = require('../services/levels');
 
 router.use(auth);
 
@@ -311,54 +313,18 @@ async function getUserStats(userId) {
     getGoldMedals(userId),
   ]);
 
+  // Lifetime points are the XP total, so the level costs no extra query.
+  const totalPoints = Math.round(parseFloat(strengthPts.rows[0].pts) + parseFloat(cardioPts.rows[0].pts));
+  const { level, title } = levelProgress(totalPoints);
+
   return {
     total_workouts: parseInt(workouts.rows[0].total),
-    total_points: Math.round(parseFloat(strengthPts.rows[0].pts) + parseFloat(cardioPts.rows[0].pts)),
+    total_points: totalPoints,
     last_workout: lastWorkout.rows[0]?.completed_at || null,
     gold_medals: goldMedals,
+    level,
+    rank_title: title,
   };
 }
 
-async function getGoldMedals(userId) {
-  try {
-    const result = await db.query(`
-      WITH weekly_pts AS (
-        SELECT ws.user_id,
-          DATE_TRUNC('week', ws.completed_at) AS wk,
-          COALESCE(SUM(ss.reps_completed), 0) AS str_pts
-        FROM workout_sessions ws
-        LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'strength'
-        LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
-        WHERE ws.completed_at IS NOT NULL
-          AND DATE_TRUNC('week', ws.completed_at) < DATE_TRUNC('week', NOW())
-        GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
-      ),
-      weekly_cardio AS (
-        SELECT ws.user_id,
-          DATE_TRUNC('week', ws.completed_at) AS wk,
-          COALESCE(SUM(se.actual_duration_minutes * 2), 0) AS crd_pts
-        FROM workout_sessions ws
-        LEFT JOIN session_exercises se ON se.session_id = ws.id AND se.exercise_type = 'cardio'
-        WHERE ws.completed_at IS NOT NULL
-          AND DATE_TRUNC('week', ws.completed_at) < DATE_TRUNC('week', NOW())
-        GROUP BY ws.user_id, DATE_TRUNC('week', ws.completed_at)
-      ),
-      combined AS (
-        SELECT COALESCE(s.user_id, c.user_id) AS user_id,
-               COALESCE(s.wk, c.wk) AS wk,
-               COALESCE(s.str_pts, 0) + COALESCE(c.crd_pts, 0) AS total_pts
-        FROM weekly_pts s
-        FULL OUTER JOIN weekly_cardio c ON c.user_id = s.user_id AND c.wk = s.wk
-      ),
-      ranked AS (
-        SELECT user_id, RANK() OVER (PARTITION BY wk ORDER BY total_pts DESC) AS rnk
-        FROM combined WHERE total_pts > 0
-      )
-      SELECT COUNT(*) AS gold_medals FROM ranked WHERE user_id = $1 AND rnk = 1
-    `, [userId]);
-    return parseInt(result.rows[0].gold_medals);
-  } catch { return 0; }
-}
-
 module.exports = router;
-module.exports.getGoldMedals = getGoldMedals;

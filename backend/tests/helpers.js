@@ -38,9 +38,22 @@ function fakeWebPush() {
   };
 }
 
+// Forget every already-loaded app module, so services pick up this call's
+// stubs instead of holding the db that some earlier test stubbed in.
+function purgeAppModules() {
+  const appDir = path.join(__dirname, '..');
+  for (const id of Object.keys(require.cache)) {
+    if (id.startsWith(appDir) && !id.includes('node_modules') && !id.startsWith(__dirname)) {
+      delete require.cache[id];
+    }
+  }
+}
+
 // Loads a route module against the given stubs and serves it at /.
 async function serveRoute(routePath, { db, webpush, config = {}, stubs = {} }) {
   const routeFile = path.join(__dirname, '..', routePath);
+  purgeAppModules();
+
   const ids = [
     stubModule('../db', db, routeFile),
     stubModule('../config', { JWT_SECRET, ...config }, routeFile),
@@ -49,7 +62,6 @@ async function serveRoute(routePath, { db, webpush, config = {}, stubs = {} }) {
   for (const [request, exports] of Object.entries(stubs)) {
     ids.push(stubModule(request, exports, routeFile));
   }
-  delete require.cache[require.resolve(routeFile)];
 
   const app = express();
   app.use(express.json());

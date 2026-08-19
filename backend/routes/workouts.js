@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const points = require('../services/points');
+const gamification = require('../services/gamification');
 
 router.use(auth);
 
@@ -124,6 +126,9 @@ router.post('/:sessionId/complete', async (req, res) => {
   const { notes, completed_at } = req.body;
   const completedAt = completed_at ? new Date(completed_at) : new Date();
   try {
+    // Read the XP total before this session counts, so we can tell the summary
+    // screen what the workout was worth and whether it took them up a level.
+    const xpBefore = await points.lifetimeXp(req.user.id);
     const result = await db.query(
       `UPDATE workout_sessions
        SET completed_at = $3,
@@ -134,7 +139,16 @@ router.post('/:sessionId/complete', async (req, res) => {
       [req.params.sessionId, req.user.id, completedAt, notes || null]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found or already completed' });
-    res.json(result.rows[0]);
+
+    // The workout is saved either way — a failure to work out levels and badges
+    // must never cost someone their session.
+    let gains = null;
+    try {
+      gains = await gamification.recordWorkout(req.user.id, xpBefore);
+    } catch (err) {
+      console.error('Gamification update failed:', err);
+    }
+    res.json({ ...result.rows[0], gamification: gains });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

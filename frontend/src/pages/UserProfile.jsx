@@ -159,6 +159,12 @@ export default function UserProfile() {
           }
         </div>
         <div className="user-profile-name">{profile.username}</div>
+        {profile.level > 0 && (
+          <div className="user-profile-level">
+            <span className="user-profile-level-num">LVL {profile.level}</span>
+            <span className="user-profile-level-title">{profile.rank_title}</span>
+          </div>
+        )}
         <div className="user-profile-since">Member since {formatJoinDate(profile.created_at)}</div>
         <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -184,7 +190,7 @@ export default function UserProfile() {
       <div className="stat-grid" style={{ marginBottom: 20 }}>
         <StatBox
           value={profile.total_points?.toLocaleString() ?? 0}
-          label="Total Points"
+          label="Total XP"
           color="var(--accent)"
         />
         <StatBox

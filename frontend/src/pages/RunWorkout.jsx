@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2, Minimize2 } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2, Minimize2, Sparkles } from 'lucide-react';
 import api from '../api';
 import { useWorkout } from '../context/WorkoutContext';
 
@@ -444,7 +444,7 @@ export default function RunWorkout() {
     try {
       const completeBody = { notes: notes.trim() || null };
       if (backfillDate) completeBody.completed_at = backfillDate;
-      await api.post(`/workouts/${sessionId}/complete`, completeBody);
+      const completed = await api.post(`/workouts/${sessionId}/complete`, completeBody);
 
       // Build summary data from in-memory state
       const setsFlat = Object.entries(setData).flatMap(([exId, sets]) =>
@@ -466,6 +466,9 @@ export default function RunWorkout() {
         exerciseCount: exercises.length,
         prs,
         notes: notes.trim(),
+        // Null when the gamification update failed — the workout still saved,
+        // so the summary just leaves the XP section out.
+        gamification: completed.data?.gamification || null,
       });
       setShowFinish(false);
       setFinishing(false);
@@ -544,6 +547,39 @@ export default function RunWorkout() {
             <div className="summary-prs">
               <Trophy size={16} style={{ color: 'var(--warning)' }} />
               <span>New PR{summary.prs.length > 1 ? 's' : ''}: {summary.prs.join(', ')}</span>
+            </div>
+          )}
+
+          {summary.gamification && (
+            <div className={`summary-xp${summary.gamification.leveledUp ? ' levelled' : ''}`}>
+              {summary.gamification.leveledUp && (
+                <div className="summary-levelup">
+                  <Sparkles size={16} />
+                  Level {summary.gamification.level} — {summary.gamification.title}
+                </div>
+              )}
+              <div className="summary-xp-row">
+                <span className="summary-xp-gain">+{summary.gamification.xpGained.toLocaleString()} XP</span>
+                {!summary.gamification.leveledUp && (
+                  <span className="summary-xp-next">
+                    {summary.gamification.xpToNextLevel.toLocaleString()} to level {summary.gamification.level + 1}
+                  </span>
+                )}
+              </div>
+              <div className="summary-xp-track">
+                <div className="summary-xp-fill" style={{ width: `${summary.gamification.percent}%` }} />
+              </div>
+              {summary.gamification.newBadges?.length > 0 && (
+                <div className="summary-badges">
+                  {summary.gamification.newBadges.map(b => (
+                    <div key={b.id} className="summary-badge">
+                      <Trophy size={13} />
+                      <span className="summary-badge-name">{b.name}</span>
+                      <span className="summary-badge-desc">{b.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
