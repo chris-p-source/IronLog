@@ -149,5 +149,11 @@ conclusions from a zero.
 ## Tests
 
 `npm test` at the repo root runs both suites: `node --test` for the backend
-(real HTTP on an ephemeral port, stubbed db/web-push) and vitest + jsdom for
-the frontend.
+and vitest + jsdom for the frontend.
+
+Route tests stub the database and serve the router on an ephemeral port.
+`tests/rest-notifications.test.js` needs a real Postgres — it creates and
+migrates `ironlog_test` on first run (override with `TEST_DATABASE_URL`) and
+skips itself when no server is reachable. It deliberately uses a database of
+its own: a dev server polling the same one claims due notifications out from
+under the tests, which shows up as tests that pass alone and fail together.

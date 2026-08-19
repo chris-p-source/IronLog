@@ -39,13 +39,16 @@ function fakeWebPush() {
 }
 
 // Loads a route module against the given stubs and serves it at /.
-async function serveRoute(routePath, { db, webpush, config = {} }) {
+async function serveRoute(routePath, { db, webpush, config = {}, stubs = {} }) {
   const routeFile = path.join(__dirname, '..', routePath);
   const ids = [
     stubModule('../db', db, routeFile),
     stubModule('../config', { JWT_SECRET, ...config }, routeFile),
   ];
   if (webpush) ids.push(stubModule('web-push', webpush, routeFile));
+  for (const [request, exports] of Object.entries(stubs)) {
+    ids.push(stubModule(request, exports, routeFile));
+  }
   delete require.cache[require.resolve(routeFile)];
 
   const app = express();

@@ -1,130 +1,120 @@
+// Route-level behaviour of /api/push. The scheduling semantics themselves
+// (one notification per run of sets, restart safety, multi-process claiming)
+// are covered against a real database in rest-notifications.test.js.
 const test = require('node:test');
 const assert = require('node:assert');
-const { serveRoute, fakeDb, fakeWebPush, wait } = require('./helpers');
+const { serveRoute, fakeDb } = require('./helpers');
 
-const SUBSCRIPTION = { rows: [{ subscription_json: JSON.stringify({ endpoint: 'https://push.example/abc' }) }] };
+const HAS_SUB = { rows: [{ '?column?': 1 }] };
+const NO_SUB = { rows: [] };
 const VAPID = { VAPID_PUBLIC_KEY: 'pub', VAPID_PRIVATE_KEY: 'priv' };
 
-async function pushServer(responses) {
-  const webpush = fakeWebPush();
-  const srv = await serveRoute('routes/push.js', { db: fakeDb(responses), webpush, config: VAPID });
-  return { ...srv, webpush };
+function fakeService({ scheduled = true, cancelled = true } = {}) {
+  const calls = [];
+  return {
+    calls,
+    scheduleRest: async (args) => { calls.push(['schedule', args]); return scheduled; },
+    cancelRest: async (userId) => { calls.push(['cancel', userId]); return cancelled; },
+  };
 }
 
-test('rest-timer sends one notification once the rest period elapses', async () => {
-  const srv = await pushServer([SUBSCRIPTION]);
+async function pushServer(responses, opts) {
+  const service = fakeService(opts);
+  const srv = await serveRoute('routes/push.js', {
+    db: fakeDb(responses),
+    config: VAPID,
+    stubs: { '../services/restNotifications': service },
+  });
+  return { ...srv, service };
+}
+
+test('rest-timer queues a notification for the requesting user', async () => {
+  const srv = await pushServer([HAS_SUB]);
   try {
-    const res = await srv.request('POST', '/rest-timer', { duration_seconds: 1, exercise_name: 'Bench Press' });
+    const res = await srv.request('POST', '/rest-timer', {
+      duration_seconds: 120, exercise_name: 'Bench Press', rest_started_at: 1700000000000,
+    });
     assert.deepStrictEqual(res.body, { scheduled: true });
-
-    assert.strictEqual(srv.webpush.sent.length, 0, 'must not fire before the rest is over');
-    await wait(1300);
-    assert.strictEqual(srv.webpush.sent.length, 1);
-    assert.match(srv.webpush.sent[0].payload, /Bench Press/);
+    assert.deepStrictEqual(srv.service.calls[0], ['schedule', {
+      userId: 1, durationSeconds: 120, exerciseName: 'Bench Press', restStartedAt: 1700000000000,
+    }]);
   } finally {
     await srv.close();
   }
 });
 
-// Regression: completing a second set mid-rest used to leave the first
-// notification queued, so "Rest Complete" fired partway through the new rest.
-test('starting a new rest cancels the notification queued for the old one', async () => {
-  const srv = await pushServer([SUBSCRIPTION, SUBSCRIPTION]);
+test('rest-timer reports a rest that a newer one has already superseded', async () => {
+  const srv = await pushServer([HAS_SUB], { scheduled: false });
   try {
-    await srv.request('POST', '/rest-timer', { duration_seconds: 1, exercise_name: 'Bench Press' });
-    await srv.request('POST', '/rest-timer', { duration_seconds: 3, exercise_name: 'Bench Press' });
-
-    await wait(1600);
-    assert.strictEqual(srv.webpush.sent.length, 0, 'superseded timer must not fire mid-rest');
-
-    await wait(1800);
-    assert.strictEqual(srv.webpush.sent.length, 1, 'the current rest still notifies exactly once');
+    const res = await srv.request('POST', '/rest-timer', { duration_seconds: 120, rest_started_at: 1 });
+    assert.deepStrictEqual(res.body, { scheduled: false, reason: 'superseded' });
   } finally {
     await srv.close();
   }
 });
 
-// Ticking five sets off in quick succession must notify once, for the last
-// set — not five times, and not early.
-test('a run of quick set completions produces exactly one notification', async () => {
-  const srv = await pushServer(Array(5).fill(SUBSCRIPTION));
+test('rest-timer defaults a missing start time to now', async () => {
+  const srv = await pushServer([HAS_SUB]);
   try {
-    const t0 = Date.now();
-    for (let i = 0; i < 5; i++) {
-      const res = await srv.request('POST', '/rest-timer', {
-        duration_seconds: 2,
-        exercise_name: `Set ${i + 1}`,
-        rest_started_at: t0 + i * 10,
-      });
-      assert.strictEqual(res.body.scheduled, true);
-    }
-
-    await wait(1200);
-    assert.strictEqual(srv.webpush.sent.length, 0, 'none of the first four may fire');
-
-    await wait(1400);
-    assert.strictEqual(srv.webpush.sent.length, 1, 'exactly one notification');
-    assert.match(srv.webpush.sent[0].payload, /Set 5/, 'and it is for the last set');
+    const before = Date.now();
+    await srv.request('POST', '/rest-timer', { duration_seconds: 120 });
+    const { restStartedAt } = srv.service.calls[0][1];
+    assert.ok(restStartedAt >= before && restStartedAt <= Date.now());
   } finally {
     await srv.close();
   }
 });
 
-test('an out-of-order request cannot displace a newer rest', async () => {
-  const srv = await pushServer([SUBSCRIPTION, SUBSCRIPTION]);
+test('rest-timer does nothing for a user with no push subscription', async () => {
+  const srv = await pushServer([NO_SUB]);
   try {
-    const now = Date.now();
-    await srv.request('POST', '/rest-timer', {
-      duration_seconds: 3, exercise_name: 'Newer', rest_started_at: now,
-    });
-    // A request for an earlier rest, delayed in flight, lands afterwards.
-    const late = await srv.request('POST', '/rest-timer', {
-      duration_seconds: 1, exercise_name: 'Older', rest_started_at: now - 500,
-    });
-    assert.deepStrictEqual(late.body, { scheduled: false, reason: 'superseded' });
-
-    await wait(1500);
-    assert.strictEqual(srv.webpush.sent.length, 0, 'the stale rest must not fire');
-
-    await wait(2000);
-    assert.strictEqual(srv.webpush.sent.length, 1);
-    assert.match(srv.webpush.sent[0].payload, /Newer/);
-  } finally {
-    await srv.close();
-  }
-});
-
-test('skipping rest cancels the queued notification', async () => {
-  const srv = await pushServer([SUBSCRIPTION]);
-  try {
-    await srv.request('POST', '/rest-timer', { duration_seconds: 1, exercise_name: 'Bench Press' });
-
-    const cancel = await srv.request('DELETE', '/rest-timer');
-    assert.deepStrictEqual(cancel.body, { cancelled: true });
-
-    await wait(1300);
-    assert.strictEqual(srv.webpush.sent.length, 0);
-  } finally {
-    await srv.close();
-  }
-});
-
-test('cancelling with nothing queued is a no-op', async () => {
-  const srv = await pushServer([]);
-  try {
-    const res = await srv.request('DELETE', '/rest-timer');
-    assert.strictEqual(res.status, 200);
-    assert.deepStrictEqual(res.body, { cancelled: false });
+    const res = await srv.request('POST', '/rest-timer', { duration_seconds: 120 });
+    assert.deepStrictEqual(res.body, { scheduled: false, reason: 'no_subscription' });
+    assert.strictEqual(srv.service.calls.length, 0);
   } finally {
     await srv.close();
   }
 });
 
 test('rest-timer rejects a missing or zero duration', async () => {
-  const srv = await pushServer([]);
+  const srv = await pushServer([HAS_SUB]);
   try {
     assert.strictEqual((await srv.request('POST', '/rest-timer', { duration_seconds: 0 })).status, 400);
     assert.strictEqual((await srv.request('POST', '/rest-timer', {})).status, 400);
+    assert.strictEqual(srv.service.calls.length, 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('rest-timer is unavailable when push is not configured', async () => {
+  const service = fakeService();
+  const srv = await serveRoute('routes/push.js', {
+    db: fakeDb([HAS_SUB]),
+    config: {},
+    stubs: { '../services/restNotifications': service },
+  });
+  try {
+    assert.strictEqual((await srv.request('POST', '/rest-timer', { duration_seconds: 120 })).status, 503);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('deleting the rest timer cancels the queued notification', async () => {
+  const srv = await pushServer([]);
+  try {
+    assert.deepStrictEqual((await srv.request('DELETE', '/rest-timer')).body, { cancelled: true });
+    assert.deepStrictEqual(srv.service.calls[0], ['cancel', 1]);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('cancelling with nothing queued is a no-op', async () => {
+  const srv = await pushServer([], { cancelled: false });
+  try {
+    assert.deepStrictEqual((await srv.request('DELETE', '/rest-timer')).body, { cancelled: false });
   } finally {
     await srv.close();
   }
@@ -135,6 +125,7 @@ test('rest-timer requires authentication', async () => {
   try {
     const res = await fetch(`${srv.base}/rest-timer`, { method: 'DELETE' });
     assert.strictEqual(res.status, 401);
+    assert.strictEqual(srv.service.calls.length, 0);
   } finally {
     await srv.close();
   }
