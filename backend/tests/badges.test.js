@@ -115,11 +115,37 @@ test('the ladder keeps going for a couple of years of training', () => {
 
 test('titles come only from badges that grant one', () => {
   assert.deepStrictEqual(badges.titlesFor([]), []);
-  assert.deepStrictEqual(badges.titlesFor(['first_workout']), [], 'no title on that badge');
+  assert.deepStrictEqual(badges.titlesFor(['habit_26']), [], 'no title on that badge');
   assert.deepStrictEqual(badges.titlesFor(['century_workouts']), ['Century Club']);
 
   const many = badges.titlesFor(['century_workouts', 'early_bird', 'unknown_badge']);
   assert.deepStrictEqual(many, ['Century Club', 'Early Bird']);
+});
+
+// Someone who has just finished their first session should have something to
+// put next to their name, rather than waiting weeks for a silver badge.
+test('a first workout already grants a title', () => {
+  const titles = badges.titlesFor(badges.qualifyingIds({ workouts_total: 1 }));
+  assert.deepStrictEqual(titles, ['Day One']);
+  assert.strictEqual(badges.rarityOf('Day One'), 'common');
+});
+
+test('the common tier is the fullest, not the emptiest', () => {
+  const counts = {};
+  for (const rarity of badges.TITLE_RARITY.values()) counts[rarity] = (counts[rarity] || 0) + 1;
+
+  assert.ok(counts.common >= 12, `common has only ${counts.common} titles`);
+  assert.ok(counts.common > counts.rare, 'more common titles than rare');
+  assert.ok(counts.common > counts.legendary * 1.5, 'commons comfortably outnumber legendaries');
+});
+
+// The early ladder is what a new user actually walks up.
+test('the first month of training offers several titles', () => {
+  // Ten sessions across four weeks, a few PRs, nothing remarkable.
+  const month = { workouts_total: 10, weeks_with_two_plus: 4, pr_count: 10 };
+  const titles = badges.titlesFor(badges.qualifyingIds(month));
+  assert.ok(titles.length >= 3, `a first month earned only ${titles.length} titles`);
+  assert.ok(titles.every(t => badges.rarityOf(t) === 'common'));
 });
 
 test('rarity follows the tier of the badge that granted the title', () => {
