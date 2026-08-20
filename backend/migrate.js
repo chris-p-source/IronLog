@@ -156,6 +156,19 @@ async function migrate() {
       UNIQUE(user_id)
     );
 
+    -- One row per supplement per day: taking creatine twice does not mean two
+    -- entries, it means the dose was wrong, so logging again updates it.
+    CREATE TABLE IF NOT EXISTS supplement_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      logged_date DATE NOT NULL,
+      name VARCHAR(60) NOT NULL,
+      dose NUMERIC(8,2),
+      unit VARCHAR(12),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, logged_date, name)
+    );
+
     CREATE TABLE IF NOT EXISTS food_logs (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

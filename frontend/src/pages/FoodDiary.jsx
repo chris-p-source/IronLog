@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScanLine, Search, Plus, Trash2, ChevronLeft, ChevronRight, Settings, X, Loader, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '../api';
+import SupplementSection from '../components/SupplementSection';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 const MEAL_KEYS = ['breakfast', 'lunch', 'dinner', 'snacks'];
@@ -659,6 +660,8 @@ export default function FoodDiary() {
       })}
 
       {/* Modals */}
+      <SupplementSection date={date} />
+
       {showScanner && (
         <ScannerModal
           onResult={handleBarcode}

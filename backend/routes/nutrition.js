@@ -286,4 +286,90 @@ router.delete('/logs/:id', async (req, res) => {
   }
 });
 
+// --- Supplements -------------------------------------------------------
+// A tick sheet rather than a food log: did you take it today, and how much.
+// Deliberately kept out of the calorie totals and out of the XP calculation —
+// tapping creatine should not count as a day of tracked eating.
+
+const MAX_NAME = 60;
+
+router.get('/supplements', async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  try {
+    const result = await db.query(
+      `SELECT id, name, dose, unit, logged_date
+       FROM supplement_logs
+       WHERE user_id = $1 AND logged_date = $2
+       ORDER BY created_at ASC`,
+      [req.user.id, date]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// The user's usual stack, newest first, so the diary can offer one-tap chips
+// with the dose they last took.
+router.get('/supplements/recent', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT name, dose, unit, last_taken FROM (
+         SELECT DISTINCT ON (name) name, dose, unit, logged_date AS last_taken
+         FROM supplement_logs
+         WHERE user_id = $1
+         ORDER BY name, logged_date DESC, id DESC
+       ) s
+       ORDER BY last_taken DESC, name
+       LIMIT 12`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/supplements', async (req, res) => {
+  const { date, name, dose, unit } = req.body;
+  const clean = typeof name === 'string' ? name.trim() : '';
+  if (!clean) return res.status(400).json({ error: 'Supplement name is required' });
+  if (clean.length > MAX_NAME) return res.status(400).json({ error: 'Supplement name is too long' });
+  if (dose != null && (isNaN(Number(dose)) || Number(dose) < 0)) {
+    return res.status(400).json({ error: 'Dose must be a positive number' });
+  }
+
+  const logDate = date || new Date().toISOString().slice(0, 10);
+  try {
+    const result = await db.query(
+      `INSERT INTO supplement_logs (user_id, logged_date, name, dose, unit)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, logged_date, name)
+       DO UPDATE SET dose = EXCLUDED.dose, unit = EXCLUDED.unit
+       RETURNING id, name, dose, unit, logged_date`,
+      [req.user.id, logDate, clean, dose ?? null, unit || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/supplements/:id', async (req, res) => {
+  try {
+    const result = await db.query(
+      'DELETE FROM supplement_logs WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Supplement entry not found' });
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
