@@ -414,6 +414,37 @@ test('a lifter with history earns their badges on first read', async (t) => {
   assert.ok(stored.includes('ten_workouts'));
 });
 
+// The achievements page needs the whole set, not only what is already held.
+test('the profile lists every title, locked ones included', async (t) => {
+  if (!await dbReady()) return t.skip('no database available');
+  await freshUser();
+  await logWorkout({ exercises: [{ name: 'Barbell Bench Press', sets: [{ reps: 5, weight: 40 }] }] });
+
+  const profile = await gamification.getProfile(userId);
+  assert.strictEqual(profile.titles.length, profile.totalTitles);
+  assert.ok(profile.totalTitles > 40, `only ${profile.totalTitles} titles listed`);
+
+  const dayOne = profile.titles.find(t => t.title === 'Day One');
+  assert.strictEqual(dayOne.earned, true);
+  assert.strictEqual(profile.earnedTitleCount, 1);
+
+  // A locked one carries what earns it and how far along they are.
+  const twoPlate = profile.titles.find(t => t.title === 'Two Plate Club');
+  assert.strictEqual(twoPlate.earned, false);
+  assert.strictEqual(twoPlate.rarity, 'rare');
+  assert.match(twoPlate.requirement, /Bench press 100 kg/);
+  assert.strictEqual(twoPlate.threshold, 100);
+  assert.strictEqual(twoPlate.value, 40, 'their best bench so far');
+  assert.strictEqual(twoPlate.percent, 40);
+
+  // Earned first, then whatever is closest.
+  assert.strictEqual(profile.titles[0].earned, true);
+  const locked = profile.titles.filter(t => !t.earned);
+  for (let i = 1; i < locked.length; i++) {
+    assert.ok(locked[i - 1].percent >= locked[i].percent, 'locked titles run closest first');
+  }
+});
+
 test('syncing awards twice does not duplicate them', async (t) => {
   if (!await dbReady()) return t.skip('no database available');
   await freshUser();

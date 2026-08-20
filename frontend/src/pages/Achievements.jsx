@@ -81,43 +81,75 @@ function BadgeCard({ badge }) {
             </div>
           </>
         )}
-        {badge.earned && badge.title && (
-          <div className="badge-unlocks">Unlocks title: {badge.title}</div>
+        {badge.title && (
+          <div className={`badge-unlocks${badge.earned ? '' : ' locked'}`}>
+            Unlocks title: {badge.title}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
+// Earned titles are chips you can tap to display. Locked ones are listed below
+// with what earns them, so the whole set is visible rather than only the part
+// you already hold.
 function TitlePicker({ titles, equipped, onPick, saving }) {
-  if (titles.length === 0) {
-    return (
-      <div className="titles-empty">
-        Earn badges to unlock titles you can display next to your name.
-      </div>
-    );
-  }
+  const earned = titles.filter(t => t.earned);
+  const locked = titles.filter(t => !t.earned);
+
   return (
-    <div className="title-chips">
-      <button
-        className={`title-chip${!equipped ? ' active' : ''}`}
-        onClick={() => onPick(null)}
-        disabled={saving}
-      >
-        None
-      </button>
-      {titles.map(({ title, rarity }) => (
-        <button
-          key={title}
-          className={`title-chip flair-${rarity}${equipped === title ? ' active' : ''}`}
-          onClick={() => onPick(title)}
-          disabled={saving}
-        >
-          {equipped === title && <Check size={13} />}
-          {title}
-        </button>
-      ))}
-    </div>
+    <>
+      {earned.length === 0 ? (
+        <div className="titles-empty">
+          Finish a workout to earn your first title.
+        </div>
+      ) : (
+        <div className="title-chips">
+          <button
+            className={`title-chip${!equipped ? ' active' : ''}`}
+            onClick={() => onPick(null)}
+            disabled={saving}
+          >
+            None
+          </button>
+          {earned.map(({ title, rarity }) => (
+            <button
+              key={title}
+              className={`title-chip flair-${rarity}${equipped === title ? ' active' : ''}`}
+              onClick={() => onPick(title)}
+              disabled={saving}
+            >
+              {equipped === title && <Check size={13} />}
+              {title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {locked.length > 0 && (
+        <div className="locked-titles">
+          <div className="locked-titles-heading">
+            <Lock size={12} /> Still to earn
+          </div>
+          {locked.map(t => (
+            <div key={t.title} className="locked-title-row">
+              <div className="locked-title-head">
+                <FlairTitle title={t.title} rarity={t.rarity} size="sm" className="flair-locked" />
+                <span className="locked-title-rarity">{t.rarity}</span>
+              </div>
+              <div className="locked-title-req">{t.requirement}</div>
+              <div className="badge-progress-track">
+                <div className="badge-progress-fill" style={{ width: `${t.percent}%` }} />
+              </div>
+              <div className="badge-progress-text">
+                {formatValue(t.value, t.unit)} / {formatValue(t.threshold, t.unit)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -171,6 +203,9 @@ export default function Achievements() {
       <div className="section-heading">
         Titles
         <Sparkles size={14} style={{ marginLeft: 6, color: 'var(--warning)' }} />
+        <span style={{ color: 'var(--text-secondary)', fontSize: 13, marginLeft: 8 }}>
+          {profile.earnedTitleCount ?? 0} / {profile.totalTitles ?? 0}
+        </span>
       </div>
       <TitlePicker
         titles={profile.titles || []}

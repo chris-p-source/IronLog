@@ -20,9 +20,13 @@ const PROFILE = {
   totalBadges: 4,
   availableTitles: ['Century Club', 'Early Bird'],
   titles: [
-    { title: 'Century Club', rarity: 'epic' },
-    { title: 'Early Bird', rarity: 'common' },
+    { title: 'Century Club', rarity: 'epic', earned: true, requirement: 'Complete 100 workouts', percent: 100, value: 100, threshold: 100 },
+    { title: 'Early Bird', rarity: 'common', earned: true, requirement: 'Finish a workout before 6am', percent: 100, value: 1, threshold: 1 },
+    { title: 'Two Plate Club', rarity: 'rare', earned: false, requirement: 'Bench press 100 kg', percent: 40, value: 40, threshold: 100, unit: 'kg' },
+    { title: 'Mountain Mover', rarity: 'legendary', earned: false, requirement: 'Lift 2,000,000 kg in total', percent: 6, value: 125000, threshold: 2000000, unit: 'kg' },
   ],
+  earnedTitleCount: 2,
+  totalTitles: 4,
   equippedTitle: 'Century Club',
   equippedRarity: 'epic',
   breakdown: { training: 8200, tracking: 800 },
@@ -30,7 +34,7 @@ const PROFILE = {
     { id: 'first_workout', name: 'First Rep', description: 'Complete your first workout', category: 'Consistency', tier: 'bronze', threshold: 1, value: 1, earned: true, percent: 100 },
     { id: 'century_workouts', name: 'Century Club', description: 'Complete 100 workouts', category: 'Consistency', tier: 'gold', threshold: 100, value: 100, earned: true, percent: 100, title: 'Century Club' },
     { id: 'tonnage_500', name: '500 Tonnes', description: 'Lift 500,000 kg in total', category: 'Volume', tier: 'silver', threshold: 500000, value: 125000, earned: false, percent: 25, unit: 'kg' },
-    { id: 'bw_bench', name: 'Bodyweight Bench', description: 'Bench press your own bodyweight', category: 'Strength', tier: 'silver', threshold: 1, value: 0.8, earned: false, percent: 80, unit: 'x' },
+    { id: 'bw_bench', name: 'Bodyweight Bench', description: 'Bench press your own bodyweight', category: 'Strength', tier: 'silver', threshold: 1, value: 0.8, earned: false, percent: 80, unit: 'x', title: 'Bodyweight Bench' },
   ],
 };
 
@@ -158,12 +162,50 @@ describe('Achievements', () => {
   });
 
   it('tells a user with no titles how to get one', async () => {
-    api.get.mockResolvedValue({ data: { ...PROFILE, availableTitles: [], titles: [], equippedTitle: null } });
+    api.get.mockResolvedValue({
+      data: { ...PROFILE, availableTitles: [], titles: PROFILE.titles.filter(t => !t.earned), equippedTitle: null },
+    });
     const { container } = render(<Achievements />);
     await flush();
 
     expect(container.querySelector('.titles-empty')).toBeTruthy();
     expect(container.querySelector('.title-chip')).toBeNull();
+    // Even with none earned, the ones still out there are listed.
+    expect(container.querySelectorAll('.locked-title-row').length).toBe(2);
+  });
+
+  it('lists the titles still to earn, with what earns them', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    const locked = [...container.querySelectorAll('.locked-title-row')];
+    expect(locked.length).toBe(2);
+
+    const twoPlate = locked.find(r => r.textContent.includes('Two Plate Club'));
+    expect(twoPlate.textContent).toContain('Bench press 100 kg');
+    expect(twoPlate.textContent).toContain('40kg / 100kg');
+    expect(twoPlate.textContent).toContain('rare');
+    // Locked titles keep their rarity colour but are dimmed, not glowing.
+    expect(twoPlate.querySelector('.flair-rare.flair-locked')).toBeTruthy();
+  });
+
+  it('does not offer a locked title as something you can equip', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    const chips = [...container.querySelectorAll('.title-chip')].map(c => c.textContent);
+    expect(chips.some(c => c.includes('Century Club'))).toBe(true);
+    expect(chips.some(c => c.includes('Two Plate Club'))).toBe(false);
+  });
+
+  it('tells you which title a locked badge would unlock', async () => {
+    const { container } = render(<Achievements />);
+    await flush();
+
+    const locked = [...container.querySelectorAll('.badge-card:not(.earned)')];
+    const withReward = locked.filter(c => c.textContent.includes('Unlocks title'));
+    expect(withReward.length).toBeGreaterThan(0);
+    expect(container.querySelector('.badge-unlocks.locked')).toBeTruthy();
   });
 
   it('degrades to a message when the profile cannot be loaded', async () => {

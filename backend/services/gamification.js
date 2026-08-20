@@ -251,18 +251,39 @@ async function getProfile(userId) {
   const user = await db.query('SELECT equipped_title FROM users WHERE id = $1', [userId]);
   const availableTitles = badges.titlesFor(earned);
   const equipped = user.rows[0]?.equipped_title;
-  const titles = badges.titlesWithRarity(earned);
+  const evaluated = badges.evaluate(stats, earned);
+
+  // Every title, not only the ones already held, so the page can show what is
+  // still out there and what earns it. Earned first, then closest.
+  const titles = evaluated
+    .filter(b => b.title)
+    .map(b => ({
+      title: b.title,
+      rarity: badges.rarityOf(b.title),
+      earned: b.earned,
+      requirement: b.description,
+      percent: b.percent,
+      value: b.value,
+      threshold: b.threshold,
+      unit: b.unit || null,
+    }))
+    .sort((a, b) => (b.earned - a.earned)
+      || (a.earned
+        ? badges.RARITY_ORDER.indexOf(a.rarity) - badges.RARITY_ORDER.indexOf(b.rarity)
+        : b.percent - a.percent));
 
   return {
     ...levels.levelProgress(xp),
     breakdown,
-    badges: badges.evaluate(stats, earned),
+    badges: evaluated,
     earnedCount: earned.length,
     totalBadges: badges.BADGES.length,
     newlyEarned,
     stats,
     availableTitles,
     titles,
+    earnedTitleCount: titles.filter(t => t.earned).length,
+    totalTitles: titles.length,
     // A title stays displayed only while its badge is still held.
     equippedTitle: availableTitles.includes(equipped) ? equipped : null,
     equippedRarity: availableTitles.includes(equipped) ? badges.rarityOf(equipped) : null,
