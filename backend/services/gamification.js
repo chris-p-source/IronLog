@@ -4,6 +4,7 @@ const badges = require('./badges');
 const points = require('./points');
 const lifts = require('./liftPatterns');
 const goals = require('./goals');
+const templateSharing = require('./templateSharing');
 const { STRENGTH_EXERCISES } = require('../data/exercises');
 
 // Exercise catalogue groups are finer than the muscle groups "Full Coverage"
@@ -139,9 +140,10 @@ async function collectStats(userId) {
     ),
   ]);
 
-  const [goldMedals, goalsAchieved] = await Promise.all([
+  const [goldMedals, goalsAchieved, templateAdds] = await Promise.all([
     points.getGoldMedals(userId),
     goals.earnedGoalCount(userId),
+    templateSharing.addsReceived(userId),
   ]);
 
   const weeks = new Map();
@@ -186,6 +188,7 @@ async function collectStats(userId) {
     full_coverage_weeks: fullCoverageWeeks,
     gold_medals: goldMedals,
     goals_achieved: goalsAchieved,
+    template_adds: templateAdds,
     followers: num(social.rows[0].followers),
     nutrition_days: num(nutrition.rows[0].nutrition_days),
     weigh_in_days: num(nutrition.rows[0].weigh_in_days),

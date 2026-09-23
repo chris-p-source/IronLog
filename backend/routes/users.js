@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const { getGoldMedals, lifetimeXp } = require('../services/points');
 const { equippedTitle } = require('../services/gamification');
 const { levelProgress } = require('../services/levels');
+const sharing = require('../services/templateSharing');
 
 router.use(auth);
 
@@ -273,9 +274,13 @@ router.get('/:username', async (req, res) => {
 
     const exercises = exResult.rows.map(r => r.exercise_name);
     const { followers, following } = followStats.rows[0];
+    // Publishing a template is a public act in its own right, so these show on
+    // the profile of anyone the viewer is allowed to see.
+    const sharedTemplates = await sharing.byAuthor(req.user.id, profile.id);
 
     res.json({
       ...profile, ...stats, exercises, is_own: isOwn,
+      shared_templates: sharedTemplates,
       is_following: isFollowingRow.rows[0]?.is_following ?? false,
       follower_count: parseInt(followers),
       following_count: parseInt(following),

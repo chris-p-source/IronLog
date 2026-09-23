@@ -83,6 +83,17 @@ async function migrate() {
     ALTER TABLE session_exercises ADD COLUMN IF NOT EXISTS base_weight_kg DECIMAL(6,2);
     ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS notes TEXT;
 
+    -- Publishing a template puts it in the shared library. The copy someone
+    -- takes is their own from that moment on, so it only records where it came
+    -- from for the credit line — nothing about it follows the original.
+    ALTER TABLE workout_templates ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT false;
+    ALTER TABLE workout_templates ADD COLUMN IF NOT EXISTS shared_at TIMESTAMPTZ;
+    ALTER TABLE workout_templates ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE workout_templates ADD COLUMN IF NOT EXISTS source_template_id INTEGER
+      REFERENCES workout_templates(id) ON DELETE SET NULL;
+    ALTER TABLE workout_templates ADD COLUMN IF NOT EXISTS source_author_id INTEGER
+      REFERENCES users(id) ON DELETE SET NULL;
+
     CREATE TABLE IF NOT EXISTS followers (
       id SERIAL PRIMARY KEY,
       follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -156,8 +167,6 @@ async function migrate() {
       UNIQUE(user_id)
     );
 
-    -- One row per supplement per day: taking creatine twice does not mean two
-    -- entries, it means the dose was wrong, so logging again updates it.
     -- Goals are earned permanently. The goal row holds only your current
     -- target, so raising it after a win must not take the win away — each
     -- earned goal is recorded here and XP is counted from these rows.
@@ -184,6 +193,8 @@ async function migrate() {
       UNIQUE(user_id, exercise_name)
     );
 
+    -- One row per supplement per day: taking creatine twice does not mean two
+    -- entries, it means the dose was wrong, so logging again updates it.
     CREATE TABLE IF NOT EXISTS supplement_logs (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -193,6 +204,17 @@ async function migrate() {
       unit VARCHAR(12),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(user_id, logged_date, name)
+    );
+
+    -- One row per person per template taken from the library. Unique, so the
+    -- "added N times" count is people, not taps — and taking a template twice
+    -- does not inflate its author's numbers.
+    CREATE TABLE IF NOT EXISTS template_adds (
+      id SERIAL PRIMARY KEY,
+      template_id INTEGER REFERENCES workout_templates(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(template_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS food_logs (

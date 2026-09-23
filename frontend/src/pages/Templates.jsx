@@ -1,7 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Pencil, Trash2, Dumbbell, Heart, CalendarDays, X, Copy } from 'lucide-react';
+import { Plus, Play, Pencil, Trash2, Dumbbell, Heart, CalendarDays, X, Copy, Share2, Users, Globe } from 'lucide-react';
 import api from '../api';
+
+// Publishing asks for a description, because a name alone tells nobody whether
+// a programme suits them.
+function ShareModal({ template, onClose, onSaved }) {
+  const [description, setDescription] = useState(template.description || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const shared = !!template.is_shared;
+
+  const save = async (nextShared) => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await api.put(`/templates/${template.id}/share`, {
+        shared: nextShared,
+        description: description.trim() || null,
+      });
+      onSaved(res.data);
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not update sharing');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">{shared ? 'Shared Template' : 'Share Template'}</span>
+          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        {error && <div className="error-msg">{error}</div>}
+
+        <p className="share-modal-blurb">
+          {shared
+            ? <>anyone can find <strong>{template.name}</strong> and add their own copy. Their copy is theirs — your later edits will not change it.</>
+            : <>Put <strong>{template.name}</strong> in the shared library so anyone can add a copy of it. You can stop sharing at any time.</>}
+        </p>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="share-description">What is this for? (optional)</label>
+          <textarea
+            id="share-description"
+            className="form-input"
+            rows={3}
+            maxLength={500}
+            placeholder="Who it suits, how to progress it..."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
+        </div>
+
+        {shared ? (
+          <>
+            <button className="btn btn-primary btn-block" onClick={() => save(true)} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Description'}
+            </button>
+            <button className="btn btn-secondary btn-block" style={{ marginTop: 8 }} onClick={() => save(false)} disabled={saving}>
+              Stop Sharing
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-primary btn-block" onClick={() => save(true)} disabled={saving}>
+            <Globe size={15} /> {saving ? 'Sharing...' : 'Share It'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function BackfillModal({ template, onClose, onConfirm }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -56,6 +127,7 @@ export default function Templates() {
   const [tab, setTab] = useState('strength');
   const [starting, setStarting] = useState(null);
   const [backfillTemplate, setBackfillTemplate] = useState(null);
+  const [sharing, setSharing] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -118,13 +190,18 @@ export default function Templates() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">My Templates</h1>
-        <button
-          className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
-          onClick={handleNew}
-        >
-          <Plus size={15} /> New
-        </button>
+        <h1 className="page-title">Templates</h1>
+        <div className="page-header-actions">
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/templates/shared')}>
+            <Users size={15} /> Shared
+          </button>
+          <button
+            className={`btn btn-sm ${isCardio ? 'btn-cardio' : 'btn-primary'}`}
+            onClick={handleNew}
+          >
+            <Plus size={15} /> New
+          </button>
+        </div>
       </div>
 
       <div className="tab-bar" style={{ marginBottom: 20 }}>
@@ -153,7 +230,21 @@ export default function Templates() {
         <div className="template-list">
           {filtered.map(t => (
             <div key={t.id} className={`template-card ${isCardio ? 'template-card-cardio' : ''}`}>
-              <div className="template-name">{t.name}</div>
+              <div className="template-card-head">
+                <div className="template-name">{t.name}</div>
+                <button
+                  className={`template-share-chip${t.is_shared ? ' shared' : ''}`}
+                  onClick={e => { e.stopPropagation(); setSharing(t); }}
+                  title={t.is_shared ? 'Shared — tap to manage' : 'Share this template'}
+                >
+                  {t.is_shared
+                    ? <><Globe size={12} /> Shared{t.add_count > 0 ? ` · ${t.add_count}` : ''}</>
+                    : <><Share2 size={12} /> Share</>}
+                </button>
+              </div>
+              {t.source_author && (
+                <div className="template-credit">from @{t.source_author}</div>
+              )}
               <div className="template-meta">
                 {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''}
                 {isCardio
@@ -199,6 +290,16 @@ export default function Templates() {
             </div>
           ))}
         </div>
+      )}
+
+      {sharing && (
+        <ShareModal
+          template={sharing}
+          onClose={() => setSharing(null)}
+          onSaved={updated => setTemplates(ts => ts.map(t => (
+            t.id === updated.id ? { ...t, ...updated, exercises: t.exercises, add_count: t.add_count } : t
+          )))}
+        />
       )}
 
       {backfillTemplate && (

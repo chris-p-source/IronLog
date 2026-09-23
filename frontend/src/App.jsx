@@ -5,6 +5,7 @@ import { WorkoutProvider } from './context/WorkoutContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Templates from './pages/Templates';
+import SharedTemplates from './pages/SharedTemplates';
 import TemplateEditor from './pages/TemplateEditor';
 import RunWorkout from './pages/RunWorkout';
 import History from './pages/History';
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/" element={<PrivateRoute><AppLayout><Templates /></AppLayout></PrivateRoute>} />
+          <Route path="/templates/shared" element={<PrivateRoute><AppLayout><SharedTemplates /></AppLayout></PrivateRoute>} />
           <Route path="/template/new" element={<PrivateRoute><AppLayout><TemplateEditor /></AppLayout></PrivateRoute>} />
           <Route path="/template/:id/edit" element={<PrivateRoute><AppLayout><TemplateEditor /></AppLayout></PrivateRoute>} />
           <Route path="/workout/:sessionId" element={<PrivateRoute><RunWorkout /></PrivateRoute>} />

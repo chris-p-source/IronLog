@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import FlairTitle from '../components/FlairTitle';
+import { SharedTemplateCard } from './SharedTemplates';
 
 function shortDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -212,6 +213,21 @@ export default function UserProfile() {
           label="Last Workout"
         />
       </div>
+
+      {/* Templates this person has published, ready to take a copy of */}
+      {profile.shared_templates?.length > 0 && (
+        <>
+          <div className="section-heading">
+            Shared Templates
+            <span className="section-heading-count">{profile.shared_templates.length}</span>
+          </div>
+          <div className="template-list" style={{ marginBottom: 20 }}>
+            {profile.shared_templates.map(t => (
+              <SharedTemplateCard key={t.id} template={t} />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Exercise progress */}
       {profile.exercises?.length > 0 && (

@@ -98,6 +98,13 @@ const BADGES = [
   { id: 'goal_5', name: 'Five Down', description: 'Hit 5 goals you set yourself', category: 'Goals', tier: 'silver', metric: 'goals_achieved', threshold: 5, title: 'Goal Crusher' },
   { id: 'goal_15', name: 'Nothing Out of Reach', description: 'Hit 15 goals you set yourself', category: 'Goals', tier: 'gold', metric: 'goals_achieved', threshold: 15, title: 'Nothing Out of Reach' },
 
+  // --- Coaching ---
+  // Earned by other people taking your templates, so these cannot be farmed
+  // alone — someone else has to find the programme worth running.
+  { id: 'template_shared', name: 'Programme Writer', description: 'Have a template you shared taken by someone', category: 'Coaching', tier: 'bronze', metric: 'template_adds', threshold: 1, title: 'Programme Writer' },
+  { id: 'template_10', name: 'Word of Mouth', description: 'Have your templates taken 10 times', category: 'Coaching', tier: 'silver', metric: 'template_adds', threshold: 10, title: 'Coach' },
+  { id: 'template_50', name: 'Strength Coach', description: 'Have your templates taken 50 times', category: 'Coaching', tier: 'gold', metric: 'template_adds', threshold: 50, title: 'Strength Coach' },
+
   // --- Social ---
   { id: 'weekly_champion', name: 'Weekly Champion', description: 'Top the weekly leaderboard', category: 'Social', tier: 'silver', metric: 'gold_medals', threshold: 1, title: 'Champion' },
   { id: 'champion_5', name: 'Serial Winner', description: 'Top the weekly leaderboard 5 times', category: 'Social', tier: 'gold', metric: 'gold_medals', threshold: 5, title: 'Serial Winner' },
