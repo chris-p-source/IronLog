@@ -177,3 +177,150 @@ describe('RunWorkout rest timer', () => {
     });
   });
 });
+
+// Resuming re-mounts the page with no router state — the banner only carries a
+// session id — so everything on screen has to be rebuilt from the server and
+// the local draft. Regression: it used to be rebuilt from the plan instead, so
+// a session in progress came back looking untouched.
+describe('RunWorkout resuming a session in progress', () => {
+  const setRow = (c, i) => c.querySelectorAll('.set-row')[i];
+  const cell = (c, i) => {
+    const row = setRow(c, i);
+    const inputs = row.querySelectorAll('.set-input');
+    return {
+      reps: inputs[0].value,
+      weight: inputs[1].value,
+      done: row.classList.contains('set-done'),
+    };
+  };
+
+  // No router state, exactly as the resume banner navigates.
+  function resumeWorkout() {
+    return render(
+      <WorkoutProvider>
+        <MemoryRouter initialEntries={['/workout/1']}>
+          <Routes>
+            <Route path="/workout/:sessionId" element={<RunWorkout />} />
+          </Routes>
+        </MemoryRouter>
+      </WorkoutProvider>
+    );
+  }
+
+  const settle = () => act(async () => {
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+  });
+
+  const withLogged = (sets) => [{ ...exercises[0], sets }];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+    api.post.mockResolvedValue({ data: {} });
+    api.delete.mockResolvedValue({ data: {} });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  const mockFetch = (sets, lastSession = null) => {
+    api.get.mockImplementation((url) => {
+      if (url === '/workouts/1') {
+        return Promise.resolve({ data: { session, exercises: withLogged(sets) } });
+      }
+      if (url.startsWith('/progress/last-session/')) return Promise.resolve({ data: lastSession });
+      return Promise.resolve({ data: null });
+    });
+  };
+
+  it('brings back the sets already logged, with the weights actually lifted', async () => {
+    mockFetch([
+      { set_number: 1, reps_completed: 8, weight_kg: '77.50' },
+      { set_number: 2, reps_completed: 7, weight_kg: '82.50' },
+    ]);
+    const { container } = resumeWorkout();
+    await settle();
+
+    expect(cell(container, 0)).toEqual({ reps: '8', weight: '77.5', done: true });
+    expect(cell(container, 1)).toEqual({ reps: '7', weight: '82.5', done: true });
+    // The set that was never done still offers the plan.
+    expect(cell(container, 2)).toEqual({ reps: '5', weight: '60', done: false });
+  });
+
+  it('counts the restored sets towards progress', async () => {
+    mockFetch([
+      { set_number: 1, reps_completed: 8, weight_kg: '77.50' },
+      { set_number: 2, reps_completed: 7, weight_kg: '82.50' },
+    ]);
+    const { container } = resumeWorkout();
+    await settle();
+
+    expect(container.querySelector('.workout-progress-text').textContent).toBe('2/3');
+  });
+
+  // The "last session" suggestion must never rewrite a set that is already done.
+  it('does not let last-session weights overwrite what was lifted today', async () => {
+    mockFetch(
+      [{ set_number: 1, reps_completed: 8, weight_kg: '77.50' }],
+      { completed_at: START.toISOString(), sets: [{ set_number: 1, reps_completed: 5, weight_kg: '60.00' }] }
+    );
+    const { container } = resumeWorkout();
+    await settle();
+
+    expect(cell(container, 0)).toEqual({ reps: '8', weight: '77.5', done: true });
+  });
+
+  it('keeps numbers typed into a set that was never ticked', async () => {
+    localStorage.setItem('ironlog_workout_draft_1', JSON.stringify({
+      sets: { 10: { 3: { reps: '3', weight: '95', done: false, touched: true } } },
+      cardio: {},
+    }));
+    mockFetch([{ set_number: 1, reps_completed: 8, weight_kg: '77.50' }]);
+    const { container } = resumeWorkout();
+    await settle();
+
+    expect(cell(container, 2)).toEqual({ reps: '3', weight: '95', done: false });
+  });
+
+  // A stale draft must never resurrect a set the user un-ticked: the server is
+  // the authority on what counts as done.
+  it('leaves an un-ticked set un-ticked even if the draft still names it', async () => {
+    localStorage.setItem('ironlog_workout_draft_1', JSON.stringify({
+      sets: { 10: { 1: { reps: '8', weight: '77.5', done: true, touched: true } } },
+      cardio: {},
+    }));
+    mockFetch([]);
+    const { container } = resumeWorkout();
+    await settle();
+
+    expect(cell(container, 0).done).toBe(false);
+  });
+
+  it('does not overwrite a weight being typed when the last-session fetch lands late', async () => {
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    api.get.mockImplementation((url) => {
+      if (url === '/workouts/1') return Promise.resolve({ data: { session, exercises: withLogged([]) } });
+      if (url.startsWith('/progress/last-session/')) return pending;
+      return Promise.resolve({ data: null });
+    });
+
+    const { container } = resumeWorkout();
+    await settle();
+
+    // User starts entering their working weight before the suggestion arrives.
+    fireEvent.change(setRow(container, 0).querySelectorAll('.set-input')[1], { target: { value: '90' } });
+    await settle();
+
+    await act(async () => {
+      release({ data: { completed_at: START.toISOString(), sets: [{ set_number: 1, reps_completed: 5, weight_kg: '60.00' }] } });
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    expect(cell(container, 0).weight).toBe('90');
+  });
+});

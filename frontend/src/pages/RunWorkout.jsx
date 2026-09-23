@@ -15,6 +15,25 @@ const DEFAULT_REST = 120;
 const BAR_WEIGHT = 20;
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
 
+// Values typed into a set but not yet ticked exist nowhere but this tab, so
+// they are kept locally until the set is logged. Keyed per session, and cleared
+// when the workout is finished or cancelled.
+const draftKey = (sessionId) => `ironlog_workout_draft_${sessionId}`;
+
+function loadDraft(sessionId) {
+  try {
+    return JSON.parse(localStorage.getItem(draftKey(sessionId))) || null;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft(sessionId) {
+  try {
+    localStorage.removeItem(draftKey(sessionId));
+  } catch { /* storage unavailable — nothing to clear */ }
+}
+
 // Returns array of plates needed per side to reach targetKg (assumes 20kg bar)
 function calcPlates(targetKg) {
   let perSide = (targetKg - BAR_WEIGHT) / 2;
@@ -208,18 +227,53 @@ export default function RunWorkout() {
     });
   }, [session?.id]);
 
+  // Rebuild the runner's state from what is already known about this session,
+  // in order of authority: sets logged on the server, then the local draft of
+  // what was typed but not yet ticked, then the plan.
+  //
+  // Reading the logged sets back is what makes leaving and resuming safe. The
+  // page remounts on every return — the resume banner carries no state — so
+  // without this a session in progress came back looking untouched, and
+  // re-ticking a set overwrote the real numbers with the plan's defaults.
   useEffect(() => {
     if (exercises.length === 0) return;
+    const draft = loadDraft(sessionId);
     const initSets = {};
     const initCardio = {};
     for (const ex of exercises) {
       if (ex.exercise_type === 'cardio') {
-        initCardio[ex.id] = { minutes: String(ex.planned_duration_minutes || ''), done: false, metrics: {} };
+        const logged = ex.actual_duration_minutes != null;
+        const drafted = draft?.cardio?.[ex.id];
+        initCardio[ex.id] = logged
+          ? {
+              minutes: String(parseFloat(ex.actual_duration_minutes)),
+              done: true,
+              metrics: ex.cardio_metrics || {},
+            }
+          : {
+              minutes: String(drafted?.touched ? drafted.minutes : (ex.planned_duration_minutes || '')),
+              done: false,
+              metrics: (drafted?.touched && drafted.metrics) || {},
+              ...(drafted?.touched && { touched: true }),
+            };
       } else {
         const baseWeight = ex.base_weight_kg ? String(parseFloat(ex.base_weight_kg)) : '';
+        const logged = new Map((ex.sets || []).map(s => [s.set_number, s]));
         initSets[ex.id] = {};
         for (let s = 1; s <= ex.sets_planned; s++) {
-          initSets[ex.id][s] = { reps: String(ex.reps_planned), weight: baseWeight, done: false };
+          const done = logged.get(s);
+          const drafted = draft?.sets?.[ex.id]?.[s];
+          if (done) {
+            initSets[ex.id][s] = {
+              reps: String(done.reps_completed ?? ex.reps_planned),
+              weight: done.weight_kg != null ? String(parseFloat(done.weight_kg)) : '',
+              done: true,
+            };
+          } else if (drafted?.touched) {
+            initSets[ex.id][s] = { ...drafted, done: false };
+          } else {
+            initSets[ex.id][s] = { reps: String(ex.reps_planned), weight: baseWeight, done: false };
+          }
         }
       }
     }
@@ -248,7 +302,10 @@ export default function RunWorkout() {
             const lastSet = lastSets.find(ls => ls.set_number === s) || lastSets[lastSets.length - 1];
             const lastWeight = lastSet?.weight_kg ? String(parseFloat(lastSet.weight_kg)) : '';
             const lastReps = lastSet?.reps_completed ? String(lastSet.reps_completed) : '';
-            if ((lastWeight || lastReps) && next[ex.id]?.[s] && !next[ex.id][s].done) {
+            // Never overwrite a set the user has already ticked or typed into —
+            // this fetch can land after they have started entering numbers.
+            const cell = next[ex.id]?.[s];
+            if ((lastWeight || lastReps) && cell && !cell.done && !cell.touched) {
               next[ex.id][s] = {
                 ...next[ex.id][s],
                 ...(lastWeight && { weight: lastWeight }),
@@ -262,6 +319,15 @@ export default function RunWorkout() {
     };
     fetchLast();
   }, [exercises]);
+
+  // Keep the local draft in step with what is on screen, so leaving the page
+  // mid-set does not lose numbers that were never logged.
+  useEffect(() => {
+    if (loading || exercises.length === 0) return;
+    try {
+      localStorage.setItem(draftKey(sessionId), JSON.stringify({ sets: setData, cardio: cardioData }));
+    } catch { /* storage full or blocked — the logged sets still persist */ }
+  }, [setData, cardioData, loading]);
 
   // Workout elapsed timer — timestamp-based so screen lock doesn't lose time
   useEffect(() => {
@@ -365,11 +431,23 @@ export default function RunWorkout() {
   const minimizeRest = () => setRestMinimized(true);
 
   const updateSet = (exId, setNum, field, value) => {
-    setSetData(d => ({ ...d, [exId]: { ...d[exId], [setNum]: { ...d[exId]?.[setNum], [field]: value } } }));
+    setSetData(d => ({
+      ...d,
+      [exId]: {
+        ...d[exId],
+        [setNum]: {
+          ...d[exId]?.[setNum],
+          [field]: value,
+          // Anything typed, or un-ticked, is the user's own — mark it so the
+          // last-session prefill leaves it alone and a resume restores it.
+          ...(field === 'done' && value ? {} : { touched: true }),
+        },
+      },
+    }));
   };
 
   const updateCardioMetric = (exId, key, value) => {
-    setCardioData(d => ({ ...d, [exId]: { ...d[exId], metrics: { ...d[exId].metrics, [key]: value } } }));
+    setCardioData(d => ({ ...d, [exId]: { ...d[exId], touched: true, metrics: { ...d[exId].metrics, [key]: value } } }));
   };
 
   const toggleSet = async (ex, setNum) => {
@@ -458,6 +536,7 @@ export default function RunWorkout() {
       const prs = prCelebration ? [prCelebration] : [];
 
       clearActiveWorkout();
+      clearDraft(sessionId);
       setSummary({
         templateName: session.template_name,
         duration: elapsed,
@@ -487,6 +566,7 @@ export default function RunWorkout() {
       console.error('Failed to delete workout session', err);
     }
     clearActiveWorkout();
+    clearDraft(sessionId);
     navigate('/', { replace: true });
   };
 
@@ -762,7 +842,7 @@ export default function RunWorkout() {
                       style={{ width: 76, borderColor: cd.done ? 'var(--border-accent)' : 'rgba(255,107,0,0.4)' }}
                       type="number" min={0} step={1}
                       value={cd.minutes}
-                      onChange={e => setCardioData(d => ({ ...d, [ex.id]: { ...d[ex.id], minutes: e.target.value } }))}
+                      onChange={e => setCardioData(d => ({ ...d, [ex.id]: { ...d[ex.id], touched: true, minutes: e.target.value } }))}
                       disabled={cd.done}
                       placeholder={String(ex.planned_duration_minutes || '')}
                     />
