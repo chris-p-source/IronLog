@@ -236,6 +236,56 @@ test('template sharing', async (t) => {
     assert.ok(!coachTemplates.some(x => x.id === mine.id));
   });
 
+  await t.test('popular sorts by how many people took it, not by date', async () => {
+    // Newer but untaken, versus older with a taker.
+    const older = await makeTemplate(coachId, 'Older Popular');
+    await sharing.setShared(coachId, older.id, { shared: true });
+    await sharing.addToMyTemplates(athleteId, older.id);
+    const newer = await makeTemplate(coachId, 'Newer Unloved');
+    await sharing.setShared(coachId, newer.id, { shared: true });
+
+    const byNew = await sharing.browse(athleteId, { sort: 'new' });
+    const byPopular = await sharing.browse(athleteId, { sort: 'popular' });
+
+    assert.equal(byNew[0].id, newer.id, 'newest first by default');
+    const popularIds = byPopular.map(x => x.id);
+    assert.ok(
+      popularIds.indexOf(older.id) < popularIds.indexOf(newer.id),
+      'a template people actually took should outrank a newer one nobody has'
+    );
+  });
+
+  await t.test('an unknown sort falls back to newest rather than failing', async () => {
+    const rows = await sharing.browse(athleteId, { sort: "'; DROP TABLE users; --" });
+    assert.ok(Array.isArray(rows));
+  });
+
+  await t.test('the feed shows templates shared by people you follow', async () => {
+    await db.query('DELETE FROM followers WHERE follower_id = $1', [athleteId]);
+    const tpl = await makeTemplate(coachId, 'Followed Share');
+    await sharing.setShared(coachId, tpl.id, { shared: true });
+
+    const before = await sharing.sharedByFollowed(athleteId);
+    assert.ok(!before.some(x => x.id === tpl.id), 'not following yet');
+
+    await db.query(
+      'INSERT INTO followers (follower_id, following_id) VALUES ($1, $2)',
+      [athleteId, coachId]
+    );
+    const after = await sharing.sharedByFollowed(athleteId);
+    assert.ok(after.some(x => x.id === tpl.id), 'following, so it shows');
+  });
+
+  // The feed is for things you have not seen.
+  await t.test('the feed drops a template once you have taken it', async () => {
+    const tpl = await makeTemplate(coachId, 'Feed Then Taken');
+    await sharing.setShared(coachId, tpl.id, { shared: true });
+    assert.ok((await sharing.sharedByFollowed(athleteId)).some(x => x.id === tpl.id));
+
+    await sharing.addToMyTemplates(athleteId, tpl.id);
+    assert.ok(!(await sharing.sharedByFollowed(athleteId)).some(x => x.id === tpl.id));
+  });
+
   await t.test('the coaching badge counts people who took your templates', async () => {
     const stats = await gamification.collectStats(coachId);
     const adds = await sharing.addsReceived(coachId);

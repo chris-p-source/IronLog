@@ -161,7 +161,7 @@ describe('SharedTemplates library', () => {
     await act(async () => { await new Promise(r => setTimeout(r, 300)); });
 
     expect(api.get).toHaveBeenLastCalledWith('/templates/shared', {
-      params: { search: 'bench', type: undefined },
+      params: { search: 'bench', type: undefined, sort: 'new' },
     });
   });
 
@@ -173,7 +173,19 @@ describe('SharedTemplates library', () => {
     await flush();
 
     expect(api.get).toHaveBeenLastCalledWith('/templates/shared', {
-      params: { search: undefined, type: 'cardio' },
+      params: { search: undefined, type: 'cardio', sort: 'new' },
+    });
+  });
+
+  it('can rank by how many people took a template', async () => {
+    renderLibrary();
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: /Most Added/ }));
+    await flush();
+
+    expect(api.get).toHaveBeenLastCalledWith('/templates/shared', {
+      params: { search: undefined, type: undefined, sort: 'popular' },
     });
   });
 });

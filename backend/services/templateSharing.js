@@ -56,7 +56,14 @@ function shape(row, viewerId) {
 
 // The library, newest first. `search` matches the template name, the author or
 // any exercise in it, so "someone who programs squats" is findable.
-async function browse(viewerId, { search, type } = {}) {
+// Newest first by default. "Popular" ranks on how many people took it, which
+// is the only signal the library has about whether a programme is any good.
+const SORTS = {
+  new: 't.shared_at DESC NULLS LAST, t.id DESC',
+  popular: 'add_count DESC, t.shared_at DESC NULLS LAST, t.id DESC',
+};
+
+async function browse(viewerId, { search, type, sort } = {}) {
   // viewerId is only used to shape the response, never in the SQL.
   const params = [];
   const filters = [];
@@ -76,7 +83,7 @@ async function browse(viewerId, { search, type } = {}) {
   const result = await db.query(
     `${LIBRARY_SELECT} ${filters.join(' ')}
      AND EXISTS (SELECT 1 FROM template_exercises te WHERE te.template_id = t.id)
-     ORDER BY t.shared_at DESC NULLS LAST, t.id DESC
+     ORDER BY ${SORTS[sort] || SORTS.new}
      LIMIT 100`,
     params
   );
@@ -120,6 +127,24 @@ async function byAuthor(viewerId, authorId) {
   );
   const added = await addedSet(viewerId, result.rows.map(r => r.id));
   return result.rows.map(r => shape({ ...r, already_added: added.has(r.id) }, viewerId));
+}
+
+// Templates published by the people you follow, for the feed. A template you
+// have already taken is left out — the feed is for things you have not seen.
+async function sharedByFollowed(viewerId, limit = 20) {
+  const result = await db.query(
+    `${LIBRARY_SELECT}
+     AND t.user_id IN (SELECT following_id FROM followers WHERE follower_id = $1)
+     AND t.shared_at IS NOT NULL
+     AND EXISTS (SELECT 1 FROM template_exercises te WHERE te.template_id = t.id)
+     AND NOT EXISTS (
+       SELECT 1 FROM template_adds ta WHERE ta.template_id = t.id AND ta.user_id = $1
+     )
+     ORDER BY t.shared_at DESC
+     LIMIT $2`,
+    [viewerId, limit]
+  );
+  return result.rows.map(r => shape({ ...r, already_added: false }, viewerId));
 }
 
 // Publishing is a deliberate act and reversible: un-sharing takes it out of the
@@ -217,6 +242,6 @@ async function addsReceived(userId) {
 }
 
 module.exports = {
-  copyExercises, browse, detail, byAuthor, setShared, addToMyTemplates,
-  addsReceived, MAX_DESCRIPTION,
+  copyExercises, browse, detail, byAuthor, sharedByFollowed, setShared,
+  addToMyTemplates, addsReceived, MAX_DESCRIPTION,
 };

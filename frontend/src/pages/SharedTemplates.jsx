@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, Check, Dumbbell, Heart, Users, ChevronLeft } from 'lucide-react';
+import { Search, Download, Check, Dumbbell, Heart, Users, ChevronLeft, Clock, Flame } from 'lucide-react';
 import api from '../api';
 
 function ExerciseTags({ exercises, isCardio }) {
@@ -131,19 +131,22 @@ export default function SharedTemplates() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
+  const [sort, setSort] = useState('new');
   const navigate = useNavigate();
 
   useEffect(() => {
     // Re-query on every change so the exercise-name search stays server-side.
     const id = setTimeout(() => {
       setLoading(true);
-      api.get('/templates/shared', { params: { search: search || undefined, type: type || undefined } })
+      api.get('/templates/shared', {
+        params: { search: search || undefined, type: type || undefined, sort },
+      })
         .then(r => setTemplates(r.data))
         .catch(() => setTemplates([]))
         .finally(() => setLoading(false));
     }, search ? 250 : 0);
     return () => clearTimeout(id);
-  }, [search, type]);
+  }, [search, type, sort]);
 
   return (
     <div className="page">
@@ -174,6 +177,21 @@ export default function SharedTemplates() {
           style={type === 'cardio' ? { background: 'var(--accent-secondary)' } : {}}
         >
           <Heart size={13} /> Cardio
+        </button>
+      </div>
+
+      <div className="shared-sort">
+        <button
+          className={`shared-sort-btn${sort === 'new' ? ' active' : ''}`}
+          onClick={() => setSort('new')}
+        >
+          <Clock size={12} /> Newest
+        </button>
+        <button
+          className={`shared-sort-btn${sort === 'popular' ? ' active' : ''}`}
+          onClick={() => setSort('popular')}
+        >
+          <Flame size={12} /> Most Added
         </button>
       </div>
 

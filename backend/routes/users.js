@@ -145,9 +145,12 @@ router.get('/me/export', async (req, res) => {
   }
 });
 
-// Social feed — workouts from users the current user follows
+// Social feed — what the people you follow have done: workouts they finished
+// and templates they published. Both carry a `kind` so the page can tell them
+// apart, and they are interleaved by when they happened.
 router.get('/feed', async (req, res) => {
   try {
+    const sharedTemplates = await sharing.sharedByFollowed(req.user.id);
     const result = await db.query(
       `SELECT
          ws.id, ws.template_name, ws.template_type, ws.completed_at, ws.duration_seconds,
@@ -168,7 +171,21 @@ router.get('/feed', async (req, res) => {
        LIMIT 50`,
       [req.user.id]
     );
-    res.json(result.rows);
+
+    const items = [
+      ...result.rows.map(r => ({ ...r, kind: 'workout', happened_at: r.completed_at })),
+      ...sharedTemplates.map(t => ({
+        // A distinct id space, so React keys cannot collide with workout ids.
+        id: `template-${t.id}`,
+        kind: 'template_shared',
+        happened_at: t.shared_at,
+        username: t.author,
+        avatar_data: t.author_avatar,
+        template: t,
+      })),
+    ].sort((a, b) => new Date(b.happened_at) - new Date(a.happened_at));
+
+    res.json(items.slice(0, 50));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

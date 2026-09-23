@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Dumbbell, Heart } from 'lucide-react';
+import { Users, Dumbbell, Heart, Share2 } from 'lucide-react';
 import api from '../api';
+import { SharedTemplateCard } from './SharedTemplates';
 
 function timeAgo(d) {
   const secs = Math.floor((Date.now() - new Date(d)) / 1000);
@@ -64,7 +65,21 @@ export default function Feed({ hideHeader } = {}) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {feed.map(item => (
+          {feed.map(item => (item.kind === 'template_shared' ? (
+            // A published template is worth taking straight from the feed, so
+            // the card is the real thing rather than a link to it.
+            <div key={item.id} className="feed-share">
+              <div className="feed-share-header" onClick={() => navigate(`/user/${item.username}`)}>
+                <Avatar username={item.username} avatarData={item.avatar_data} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="feed-card-username">{item.username}</div>
+                  <div className="feed-card-time">shared a template · {timeAgo(item.happened_at)}</div>
+                </div>
+                <Share2 size={16} color="var(--accent)" />
+              </div>
+              <SharedTemplateCard template={item.template} />
+            </div>
+          ) : (
             <div
               key={item.id}
               className="feed-card"
@@ -90,14 +105,15 @@ export default function Feed({ hideHeader } = {}) {
                 {fmtDuration(item.duration_seconds) && (
                   <span className="feed-stat">{fmtDuration(item.duration_seconds)}</span>
                 )}
-                <span className="feed-stat">{item.exercise_count} exercises</span>
-                <span className="feed-stat">{item.sets_completed} sets</span>
+                {/* Counts arrive from Postgres as strings, so compare numerically. */}
+                <span className="feed-stat">{item.exercise_count} exercise{Number(item.exercise_count) === 1 ? '' : 's'}</span>
+                <span className="feed-stat">{item.sets_completed} set{Number(item.sets_completed) === 1 ? '' : 's'}</span>
                 {parseFloat(item.total_volume) > 0 && (
                   <span className="feed-stat">{Math.round(item.total_volume).toLocaleString()} kg</span>
                 )}
               </div>
             </div>
-          ))}
+          )))}
         </div>
       )}
     </div>

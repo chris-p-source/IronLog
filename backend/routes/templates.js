@@ -8,7 +8,11 @@ router.use(auth);
 // The shared library. Declared before /:id so "shared" is never read as an id.
 router.get('/shared', async (req, res) => {
   try {
-    res.json(await sharing.browse(req.user.id, { search: req.query.search, type: req.query.type }));
+    res.json(await sharing.browse(req.user.id, {
+      search: req.query.search,
+      type: req.query.type,
+      sort: req.query.sort,
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
