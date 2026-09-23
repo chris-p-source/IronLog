@@ -300,6 +300,22 @@ describe('RunWorkout resuming a session in progress', () => {
     expect(cell(container, 0).done).toBe(false);
   });
 
+  // Notes are only sent when the workout is finished, so nothing but the draft
+  // is holding them while it is still in progress.
+  it('keeps workout notes that were typed before leaving', async () => {
+    localStorage.setItem('ironlog_workout_draft_1', JSON.stringify({
+      sets: {}, cardio: {}, notes: 'Felt strong today',
+    }));
+    mockFetch([]);
+    const { container } = resumeWorkout();
+    await settle();
+
+    fireEvent.click(container.querySelector('.finish-section button'));
+    await settle();
+
+    expect(container.querySelector('textarea').value).toBe('Felt strong today');
+  });
+
   it('does not overwrite a weight being typed when the last-session fetch lands late', async () => {
     let release;
     const pending = new Promise(resolve => { release = resolve; });

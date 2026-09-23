@@ -279,6 +279,9 @@ export default function RunWorkout() {
     }
     setSetData(initSets);
     setCardioData(initCardio);
+    // Notes are only sent when the workout is finished, so they live in the
+    // draft until then.
+    if (draft?.notes) setNotes(draft.notes);
 
     const fetchLast = async () => {
       const results = {};
@@ -325,9 +328,9 @@ export default function RunWorkout() {
   useEffect(() => {
     if (loading || exercises.length === 0) return;
     try {
-      localStorage.setItem(draftKey(sessionId), JSON.stringify({ sets: setData, cardio: cardioData }));
+      localStorage.setItem(draftKey(sessionId), JSON.stringify({ sets: setData, cardio: cardioData, notes }));
     } catch { /* storage full or blocked — the logged sets still persist */ }
-  }, [setData, cardioData, loading]);
+  }, [setData, cardioData, notes, loading]);
 
   // Workout elapsed timer — timestamp-based so screen lock doesn't lose time
   useEffect(() => {
