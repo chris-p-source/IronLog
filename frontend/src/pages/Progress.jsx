@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine,
 } from 'recharts';
 import api from '../api';
+import GoalsCard from '../components/GoalsCard';
 
 function shortDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -189,6 +190,9 @@ export default function Progress() {
 
       {tab === 'weight' && <Bodyweight hideHeader />}
       {tab === 'recovery' && <MuscleMap hideHeader />}
+
+      {/* ── Goals (strength tab only) ── */}
+      {tab === 'strength' && <GoalsCard trained={exercises} />}
 
       {/* ── Personal Bests snippet (strength tab only) ── */}
       {tab === 'strength' && personalBests.length > 0 && (
