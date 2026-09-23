@@ -93,6 +93,11 @@ const BADGES = [
   { id: 'full_coverage', name: 'Full Coverage', description: 'Hit every major muscle group inside one week', category: 'Variety', tier: 'bronze', metric: 'full_coverage_weeks', threshold: 1, title: 'Well Rounded' },
   { id: 'full_coverage_26', name: 'Nothing Skipped', description: 'Cover every muscle group in 26 different weeks', category: 'Variety', tier: 'gold', metric: 'full_coverage_weeks', threshold: 26, title: 'Nothing Skipped' },
 
+  // --- Goals: targets you set and then went and earned ---
+  { id: 'goal_first', name: 'Target Acquired', description: 'Set a goal and then hit it', category: 'Goals', tier: 'bronze', metric: 'goals_achieved', threshold: 1, title: 'Goal Getter' },
+  { id: 'goal_5', name: 'Five Down', description: 'Hit 5 goals you set yourself', category: 'Goals', tier: 'silver', metric: 'goals_achieved', threshold: 5, title: 'Goal Crusher' },
+  { id: 'goal_15', name: 'Nothing Out of Reach', description: 'Hit 15 goals you set yourself', category: 'Goals', tier: 'gold', metric: 'goals_achieved', threshold: 15, title: 'Nothing Out of Reach' },
+
   // --- Social ---
   { id: 'weekly_champion', name: 'Weekly Champion', description: 'Top the weekly leaderboard', category: 'Social', tier: 'silver', metric: 'gold_medals', threshold: 1, title: 'Champion' },
   { id: 'champion_5', name: 'Serial Winner', description: 'Top the weekly leaderboard 5 times', category: 'Social', tier: 'gold', metric: 'gold_medals', threshold: 5, title: 'Serial Winner' },

@@ -158,6 +158,19 @@ async function migrate() {
 
     -- One row per supplement per day: taking creatine twice does not mean two
     -- entries, it means the dose was wrong, so logging again updates it.
+    -- Goals are earned permanently. The goal row holds only your current
+    -- target, so raising it after a win must not take the win away — each
+    -- earned goal is recorded here and XP is counted from these rows.
+    CREATE TABLE IF NOT EXISTS goal_achievements (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      exercise_name VARCHAR(100) NOT NULL,
+      target_weight_kg NUMERIC(6,2) NOT NULL,
+      target_reps INTEGER NOT NULL,
+      achieved_at TIMESTAMPTZ NOT NULL,
+      UNIQUE(user_id, exercise_name, target_weight_kg, target_reps)
+    );
+
     -- One target per exercise: the weight and reps you are working towards.
     -- achieved_at is stamped from the first set that actually met both numbers.
     CREATE TABLE IF NOT EXISTS exercise_goals (

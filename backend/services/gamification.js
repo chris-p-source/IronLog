@@ -3,6 +3,7 @@ const levels = require('./levels');
 const badges = require('./badges');
 const points = require('./points');
 const lifts = require('./liftPatterns');
+const goals = require('./goals');
 const { STRENGTH_EXERCISES } = require('../data/exercises');
 
 // Exercise catalogue groups are finer than the muscle groups "Full Coverage"
@@ -138,7 +139,10 @@ async function collectStats(userId) {
     ),
   ]);
 
-  const goldMedals = await points.getGoldMedals(userId);
+  const [goldMedals, goalsAchieved] = await Promise.all([
+    points.getGoldMedals(userId),
+    goals.earnedGoalCount(userId),
+  ]);
 
   const weeks = new Map();
   for (const row of coverage.rows) {
@@ -181,6 +185,7 @@ async function collectStats(userId) {
     distinct_exercises: num(variety.rows[0].distinct_exercises),
     full_coverage_weeks: fullCoverageWeeks,
     gold_medals: goldMedals,
+    goals_achieved: goalsAchieved,
     followers: num(social.rows[0].followers),
     nutrition_days: num(nutrition.rows[0].nutrition_days),
     weigh_in_days: num(nutrition.rows[0].weigh_in_days),
@@ -292,6 +297,15 @@ async function getProfile(userId) {
 
 // Called when a workout is saved: what changed, for the summary screen.
 async function recordWorkout(userId, xpBefore) {
+  // Stamp any goal this session just met before totting up XP, so its bonus
+  // lands in this workout's summary instead of appearing out of nowhere later.
+  let goalsHit = [];
+  try {
+    goalsHit = await goals.syncAchievements(userId);
+  } catch (err) {
+    console.error('Goal check failed:', err);
+  }
+
   const [xp, stats] = await Promise.all([points.lifetimeXp(userId), collectStats(userId)]);
   const newBadges = await syncAwards(userId, stats);
   const before = levels.levelProgress(xpBefore);
@@ -303,6 +317,12 @@ async function recordWorkout(userId, xpBefore) {
     leveledUp: after.level > before.level,
     previousLevel: before.level,
     newBadges: newBadges.map(b => ({ id: b.id, name: b.name, description: b.description, tier: b.tier })),
+    goalsAchieved: goalsHit.map(g => ({
+      exercise_name: g.exercise_name,
+      target_weight_kg: g.target_weight_kg,
+      target_reps: g.target_reps,
+      earned_xp: g.earned,
+    })),
   };
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2, Minimize2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Heart, ChevronDown, ChevronUp, Calculator, Flame, Dumbbell, Clock, BarChart2, Minimize2, Sparkles, Target } from 'lucide-react';
 import api from '../api';
 import { useWorkout } from '../context/WorkoutContext';
 
@@ -569,6 +569,20 @@ export default function RunWorkout() {
               <div className="summary-xp-track">
                 <div className="summary-xp-fill" style={{ width: `${summary.gamification.percent}%` }} />
               </div>
+              {summary.gamification.goalsAchieved?.length > 0 && (
+                <div className="summary-badges">
+                  {summary.gamification.goalsAchieved.map(g => (
+                    <div key={g.exercise_name} className="summary-badge summary-goal">
+                      <Target size={13} />
+                      <span className="summary-badge-name">Goal reached</span>
+                      <span className="summary-badge-desc">
+                        {g.exercise_name} {g.target_weight_kg}kg × {g.target_reps}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {summary.gamification.newBadges?.length > 0 && (
                 <div className="summary-badges">
                   {summary.gamification.newBadges.map(b => (

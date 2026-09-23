@@ -29,7 +29,7 @@ const PROFILE = {
   totalTitles: 4,
   equippedTitle: 'Century Club',
   equippedRarity: 'epic',
-  breakdown: { training: 8200, tracking: 800 },
+  breakdown: { training: 8200, tracking: 800, goals: 1000 },
   badges: [
     { id: 'first_workout', name: 'First Rep', description: 'Complete your first workout', category: 'Consistency', tier: 'bronze', threshold: 1, value: 1, earned: true, percent: 100 },
     { id: 'century_workouts', name: 'Century Club', description: 'Complete 100 workouts', category: 'Consistency', tier: 'gold', threshold: 100, value: 100, earned: true, percent: 100, title: 'Century Club' },
@@ -68,6 +68,8 @@ describe('Achievements', () => {
     expect(breakdown).toContain('training');
     expect(breakdown).toContain('800');
     expect(breakdown).toContain('tracking');
+    expect(breakdown).toContain('1,000');
+    expect(breakdown).toContain('goals');
   });
 
   it('shows progress towards badges that are not yet earned', async () => {

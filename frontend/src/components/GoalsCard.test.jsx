@@ -173,6 +173,56 @@ describe('GoalsCard', () => {
     expect(screen.getByText('Target weight is not realistic')).toBeTruthy();
   });
 
+  it('offers the next target straight after hitting one', async () => {
+    mockApi([goal({ achieved_at: '2026-09-01T00:00:00.000Z', percent: 100, earned_xp: true, xp_awarded: 500 })]);
+    const { container } = render(<GoalsCard />);
+    await flush();
+
+    expect(container.querySelector('.goal-xp').textContent).toContain('+500 XP earned');
+
+    // One tap from achieved to a new target, already on the right exercise and
+    // nudged up from what they just hit.
+    fireEvent.click(screen.getByRole('button', { name: /Set the next target/ }));
+    await flush();
+
+    expect(screen.getByText('Change Target')).toBeTruthy();
+    expect(screen.getByText(/starts this goal again from today/)).toBeTruthy();
+    expect(screen.getByLabelText('Target weight (kg)').value).toBe('102.5');
+    expect(screen.getByLabelText('For how many reps').value).toBe('5');
+  });
+
+  it('says when an achieved goal earned no XP, and why', async () => {
+    mockApi([goal({ achieved_at: '2026-09-01T00:00:00.000Z', percent: 100, earned_xp: false, xp_awarded: 0 })]);
+    const { container } = render(<GoalsCard />);
+    await flush();
+
+    const xp = container.querySelector('.goal-xp.muted').textContent;
+    expect(xp).toContain('No XP');
+    expect(xp).toContain('already in your history');
+  });
+
+  it('edits an open goal without changing the exercise', async () => {
+    mockApi([goal()]);
+    const { container } = render(<GoalsCard />);
+    await flush();
+
+    fireEvent.click(screen.getByTitle('Change target'));
+    await flush();
+
+    // The exercise is fixed, and the target starts from the current one.
+    expect(container.querySelector('.goal-chosen').textContent).toContain('Barbell Bench Press');
+    expect(container.querySelector('.goal-chosen button')).toBeNull();
+    expect(container.querySelector('input[type="number"]').value).toBe('100');
+
+    fireEvent.change(container.querySelector('input[type="number"]'), { target: { value: '105' } });
+    fireEvent.click(screen.getByRole('button', { name: /Update Goal/ }));
+    await flush();
+
+    expect(api.post).toHaveBeenCalledWith('/goals', {
+      exercise_name: 'Barbell Bench Press', target_weight_kg: 105, target_reps: 5,
+    });
+  });
+
   it('removes a goal, and puts it back if that fails', async () => {
     mockApi([goal()]);
     api.delete.mockRejectedValue(new Error('offline'));

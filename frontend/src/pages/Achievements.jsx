@@ -55,6 +55,12 @@ function LevelCard({ profile }) {
           <span><strong>{profile.breakdown.training.toLocaleString()}</strong> training</span>
           <span className="level-breakdown-dot">·</span>
           <span><strong>{profile.breakdown.tracking.toLocaleString()}</strong> tracking</span>
+          {profile.breakdown.goals > 0 && (
+            <>
+              <span className="level-breakdown-dot">·</span>
+              <span><strong>{profile.breakdown.goals.toLocaleString()}</strong> goals</span>
+            </>
+          )}
         </div>
       )}
     </div>

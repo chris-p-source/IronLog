@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, Trash2, TrendingUp, CheckCircle2, X, Search } from 'lucide-react';
+import { Target, Plus, Trash2, TrendingUp, CheckCircle2, X, Search, Pencil, Zap } from 'lucide-react';
 import api from '../api';
 
 function formatDate(d) {
@@ -76,7 +76,7 @@ function ForecastLine({ goal }) {
   );
 }
 
-function GoalRow({ goal, onDelete }) {
+function GoalRow({ goal, onEdit, onDelete }) {
   return (
     <div className={`goal-row${goal.achieved_at ? ' achieved' : ''}`}>
       <div className="goal-row-top">
@@ -84,7 +84,10 @@ function GoalRow({ goal, onDelete }) {
         <span className="goal-target">
           {round(goal.target_weight_kg)}kg × {goal.target_reps}
         </span>
-        <button className="goal-delete" onClick={() => onDelete(goal)} title="Remove goal">
+        <button className="goal-icon-btn" onClick={() => onEdit(goal)} title="Change target">
+          <Pencil size={14} />
+        </button>
+        <button className="goal-icon-btn" onClick={() => onDelete(goal)} title="Remove goal">
           <Trash2 size={14} />
         </button>
       </div>
@@ -106,16 +109,35 @@ function GoalRow({ goal, onDelete }) {
       </div>
 
       <ForecastLine goal={goal} />
+
+      {goal.achieved_at && (
+        <>
+          {goal.earned_xp ? (
+            <div className="goal-xp"><Zap size={12} /> +{goal.xp_awarded} XP earned</div>
+          ) : (
+            <div className="goal-xp muted">
+              <Zap size={12} /> No XP — this one was already in your history when you set it
+            </div>
+          )}
+          <button className="goal-next-btn" onClick={() => onEdit(goal)}>
+            <Target size={13} /> Set the next target
+          </button>
+        </>
+      )}
     </div>
   );
 }
 
-function AddGoalModal({ trained, onSave, onClose }) {
+function AddGoalModal({ trained, editing, onSave, onClose }) {
   const [catalogue, setCatalogue] = useState([]);
   const [search, setSearch] = useState('');
-  const [exercise, setExercise] = useState('');
-  const [weight, setWeight] = useState('');
-  const [reps, setReps] = useState('5');
+  const [exercise, setExercise] = useState(editing?.exercise_name || '');
+  // Editing an achieved goal is usually "same lift, more weight", so start from
+  // what they just hit rather than an empty box.
+  const [weight, setWeight] = useState(
+    editing ? String(round(editing.target_weight_kg) + (editing.achieved_at ? 2.5 : 0)) : ''
+  );
+  const [reps, setReps] = useState(editing ? String(editing.target_reps) : '5');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -148,19 +170,28 @@ function AddGoalModal({ trained, onSave, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
-        <div className="modal-title">Set a Goal</div>
+        <div className="modal-title">{editing ? 'Change Target' : 'Set a Goal'}</div>
         {error && <div className="error-msg">{error}</div>}
 
         {exercise ? (
           <>
             <div className="goal-chosen">
               <span>{exercise}</span>
-              <button onClick={() => setExercise('')}><X size={14} /></button>
+              {!editing && (
+                <button onClick={() => setExercise('')}><X size={14} /></button>
+              )}
             </div>
+            {editing?.achieved_at && (
+              <div className="goal-edit-note">
+                You hit {round(editing.target_weight_kg)}kg × {editing.target_reps}. Setting a new
+                target starts this goal again from today.
+              </div>
+            )}
 
             <div className="form-group">
-              <label className="form-label">Target weight (kg)</label>
+              <label className="form-label" htmlFor="goal-weight">Target weight (kg)</label>
               <input
+                id="goal-weight"
                 className="form-input"
                 type="number" min={0} step={2.5} inputMode="decimal"
                 autoFocus
@@ -171,8 +202,9 @@ function AddGoalModal({ trained, onSave, onClose }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">For how many reps</label>
+              <label className="form-label" htmlFor="goal-reps">For how many reps</label>
               <input
+                id="goal-reps"
                 className="form-input"
                 type="number" min={1} step={1} inputMode="numeric"
                 placeholder="5"
@@ -186,7 +218,7 @@ function AddGoalModal({ trained, onSave, onClose }) {
               onClick={submit}
               disabled={!weight || !reps || saving}
             >
-              {saving ? 'Saving...' : 'Set Goal'}
+              {saving ? 'Saving...' : editing ? 'Update Goal' : 'Set Goal'}
             </button>
           </>
         ) : (
@@ -220,6 +252,7 @@ export default function GoalsCard({ trained = [] }) {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
 
   const load = () => api.get('/goals')
     .then(r => setGoals(r.data))
@@ -229,6 +262,8 @@ export default function GoalsCard({ trained = [] }) {
   useEffect(() => { load(); }, []);
 
   const save = async (goal) => {
+    // Updating goes through the same upsert, so a new target on the same lift
+    // replaces the old one and starts unmet.
     const res = await api.post('/goals', goal);
     setGoals(gs => [res.data, ...gs.filter(g => g.exercise_name !== res.data.exercise_name)]);
   };
@@ -262,11 +297,18 @@ export default function GoalsCard({ trained = [] }) {
           and when you are on course to hit it.
         </div>
       ) : (
-        goals.map(goal => <GoalRow key={goal.id} goal={goal} onDelete={remove} />)
+        goals.map(goal => (
+          <GoalRow key={goal.id} goal={goal} onEdit={setEditing} onDelete={remove} />
+        ))
       )}
 
-      {showAdd && (
-        <AddGoalModal trained={trained} onSave={save} onClose={() => setShowAdd(false)} />
+      {(showAdd || editing) && (
+        <AddGoalModal
+          trained={trained}
+          editing={editing}
+          onSave={save}
+          onClose={() => { setShowAdd(false); setEditing(null); }}
+        />
       )}
     </div>
   );

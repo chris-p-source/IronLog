@@ -72,6 +72,9 @@ async function getGoldMedalsMap() {
 // day is ~245 XP a week against ~800 from training four times.
 const XP_PER_WEIGH_IN = 10;
 const XP_PER_NUTRITION_DAY = 25;
+// A goal you set and then earned — see services/goals.js for why only those
+// count, and why this is worth about a week of training.
+const XP_PER_GOAL = 500;
 
 // One weigh-in per day is already enforced by the table's unique constraint, so
 // there is nothing here to farm.
@@ -107,12 +110,19 @@ const TRAINING_XP = `(
   ), 0)
 )`;
 
+// Goals only pay out when achieved after they were set, so declaring a target
+// already in your history cannot mine XP.
+const GOALS_XP = `(
+  (SELECT COUNT(*) FROM goal_achievements ga WHERE ga.user_id = u.id)
+  * ${XP_PER_GOAL}
+)`;
+
 const TRACKING_XP = `(
   ${WEIGH_IN_DAYS('u.id')} * ${XP_PER_WEIGH_IN}
   + ${NUTRITION_DAYS('u.id')} * ${XP_PER_NUTRITION_DAY}
 )`;
 
-const LIFETIME_XP = `ROUND(${TRAINING_XP} + ${TRACKING_XP})`;
+const LIFETIME_XP = `ROUND(${TRAINING_XP} + ${TRACKING_XP} + ${GOALS_XP})`;
 
 async function lifetimeXp(userId) {
   const result = await db.query(`SELECT ${LIFETIME_XP} AS xp FROM users u WHERE u.id = $1`, [userId]);
@@ -135,15 +145,21 @@ async function lifetimeXpMap(userIds = []) {
 // Where the XP came from, so the app can show that logging counts too.
 async function xpBreakdown(userId) {
   const result = await db.query(
-    `SELECT ROUND(${TRAINING_XP}) AS training, ROUND(${TRACKING_XP}) AS tracking
+    `SELECT ROUND(${TRAINING_XP}) AS training,
+            ROUND(${TRACKING_XP}) AS tracking,
+            ROUND(${GOALS_XP}) AS goals
      FROM users u WHERE u.id = $1`,
     [userId]
   );
   const row = result.rows[0] || {};
-  return { training: parseInt(row.training) || 0, tracking: parseInt(row.tracking) || 0 };
+  return {
+    training: parseInt(row.training) || 0,
+    tracking: parseInt(row.tracking) || 0,
+    goals: parseInt(row.goals) || 0,
+  };
 }
 
 module.exports = {
   getGoldMedals, getGoldMedalsMap, lifetimeXp, lifetimeXpMap, xpBreakdown, RANKED_WEEKS,
-  WEIGH_IN_DAYS, NUTRITION_DAYS, XP_PER_WEIGH_IN, XP_PER_NUTRITION_DAY,
+  WEIGH_IN_DAYS, NUTRITION_DAYS, XP_PER_WEIGH_IN, XP_PER_NUTRITION_DAY, XP_PER_GOAL,
 };
