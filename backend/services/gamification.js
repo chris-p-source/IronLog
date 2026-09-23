@@ -20,6 +20,7 @@ const GROUP_TO_COVERAGE = {
   Calves: 'Legs',
   Biceps: 'Arms',
   Triceps: 'Arms',
+  Forearms: 'Arms',
   Core: 'Core',
 };
 
@@ -329,4 +330,4 @@ async function recordWorkout(userId, xpBefore) {
   };
 }
 
-module.exports = { collectStats, syncAwards, getProfile, recordWorkout, earnedIds, equippedTitle, COVERAGE_BY_EXERCISE };
+module.exports = { collectStats, syncAwards, getProfile, recordWorkout, earnedIds, equippedTitle, COVERAGE_BY_EXERCISE, GROUP_TO_COVERAGE };

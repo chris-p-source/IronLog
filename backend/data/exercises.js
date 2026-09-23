@@ -111,6 +111,71 @@ const STRENGTH_EXERCISES = [
   { name: 'Weighted Dip', group: 'Triceps' },
   { name: 'Muscle-Up', group: 'Full Body' },
   { name: 'Reverse Curl', group: 'Biceps' },
+
+  // --- Machines, cables and variations most gyms actually have ---
+  // Chest
+  { name: 'Smith Machine Bench Press', group: 'Chest' },
+  { name: 'Incline Dumbbell Fly', group: 'Chest' },
+  { name: 'Dumbbell Pullover', group: 'Chest' },
+  { name: 'Floor Press', group: 'Chest' },
+  // Back
+  { name: 'Wide-Grip Lat Pulldown', group: 'Back' },
+  { name: 'Single-Arm Lat Pulldown', group: 'Back' },
+  { name: 'Straight-Arm Pulldown', group: 'Back' },
+  { name: 'Pendlay Row', group: 'Back' },
+  { name: 'Inverted Row', group: 'Back' },
+  { name: 'Machine Row', group: 'Back' },
+  // Shoulders
+  { name: 'Machine Lateral Raise', group: 'Shoulders' },
+  { name: 'Cable Rear Delt Fly', group: 'Shoulders' },
+  { name: 'Reverse Pec Deck', group: 'Shoulders' },
+  { name: 'Landmine Press', group: 'Shoulders' },
+  // Biceps
+  { name: 'Spider Curl', group: 'Biceps' },
+  { name: 'Rope Hammer Curl', group: 'Biceps' },
+  { name: 'Machine Curl', group: 'Biceps' },
+  // Triceps
+  { name: 'Rope Tricep Pushdown', group: 'Triceps' },
+  { name: 'Single-Arm Tricep Pushdown', group: 'Triceps' },
+  { name: 'Bench Dip', group: 'Triceps' },
+  { name: 'Machine Tricep Extension', group: 'Triceps' },
+  // Quads
+  { name: 'Smith Machine Squat', group: 'Quads' },
+  { name: 'Goblet Squat', group: 'Quads' },
+  { name: 'Reverse Lunge', group: 'Quads' },
+  { name: 'Single-Leg Leg Press', group: 'Quads' },
+  // Hamstrings & Glutes
+  { name: 'Glute Abduction Machine', group: 'Hamstrings & Glutes' },
+  { name: 'Hip Adduction Machine', group: 'Hamstrings & Glutes' },
+  { name: 'Nordic Hamstring Curl', group: 'Hamstrings & Glutes' },
+  { name: 'Single-Leg Romanian Deadlift', group: 'Hamstrings & Glutes' },
+  { name: 'Glute Ham Raise', group: 'Hamstrings & Glutes' },
+  { name: 'Cable Pull-Through', group: 'Hamstrings & Glutes' },
+  { name: 'Reverse Hyperextension', group: 'Hamstrings & Glutes' },
+  { name: 'Back Extension', group: 'Hamstrings & Glutes' },
+  // Calves
+  { name: 'Single-Leg Calf Raise', group: 'Calves' },
+  { name: 'Smith Machine Calf Raise', group: 'Calves' },
+  // Core
+  { name: 'Cable Woodchop', group: 'Core' },
+  { name: 'Decline Sit-Up', group: 'Core' },
+  { name: 'Mountain Climber', group: 'Core' },
+  { name: 'Toes-to-Bar', group: 'Core' },
+  { name: 'Pallof Press', group: 'Core' },
+  // Olympic & Power
+  { name: 'Clean and Jerk', group: 'Olympic & Power' },
+  { name: 'Hang Snatch', group: 'Olympic & Power' },
+  { name: 'Push Jerk', group: 'Olympic & Power' },
+  { name: 'Deficit Deadlift', group: 'Olympic & Power' },
+  // Full Body
+  { name: 'Thruster', group: 'Full Body' },
+  { name: 'Medicine Ball Slam', group: 'Full Body' },
+  // Traps
+  { name: 'Trap Bar Shrug', group: 'Traps' },
+  { name: 'Cable Shrug', group: 'Traps' },
+  // Forearms
+  { name: 'Wrist Curl', group: 'Forearms' },
+  { name: 'Reverse Wrist Curl', group: 'Forearms' },
 ];
 
 const CARDIO_EXERCISES = [

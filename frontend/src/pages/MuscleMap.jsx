@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 
+// Exercises are matched by name, so this has to cover the catalogue as well as
+// whatever people type themselves. Anything it cannot place contributes nothing
+// to the map, which is why MuscleMap.test.jsx asserts every catalogue exercise
+// lands in at least one group.
+//
+// `exclude` exists for names a broader keyword would otherwise grab: a wrist
+// curl is not a biceps curl.
 const MUSCLE_GROUPS = {
-  chest:      { label: 'Chest',       keywords: ['bench', 'chest', 'fly', 'pec', 'dip', 'push up', 'pushup'] },
-  shoulders:  { label: 'Shoulders',   keywords: ['shoulder', 'ohp', 'overhead press', 'lateral raise', 'delt', 'military', 'arnold'] },
-  back:       { label: 'Back',        keywords: ['row', 'pull up', 'pullup', 'pull-up', 'lat', 'deadlift', 'pulldown', 'pull down', 'back', 'chin up', 'chinup', 'shrug', 'trap'] },
-  biceps:     { label: 'Biceps',      keywords: ['curl', 'bicep', 'hammer', 'preacher'] },
-  triceps:    { label: 'Triceps',     keywords: ['tricep', 'skull', 'pushdown', 'tricep extension', 'kickback', 'close grip'] },
-  core:       { label: 'Core',        keywords: ['abs', 'core', 'plank', 'crunch', 'sit up', 'leg raise', 'russian twist', 'ab '] },
-  quads:      { label: 'Quads',       keywords: ['squat', 'leg press', 'lunge', 'quad', 'leg extension', 'hack squat', 'split squat', 'step up'] },
-  hamstrings: { label: 'Hamstrings',  keywords: ['hamstring', 'romanian', 'rdl', 'leg curl', 'nordic', 'good morning', 'stiff leg'] },
-  glutes:     { label: 'Glutes',      keywords: ['glute', 'hip thrust', 'rdl', 'bulgarian', 'bridge', 'hip abduction'] },
+  chest:      { label: 'Chest',       keywords: ['bench', 'chest', 'fly', 'pec', 'dip', 'push up', 'pushup', 'push-up', 'crossover', 'pullover', 'floor press'] },
+  shoulders:  { label: 'Shoulders',   keywords: ['shoulder', 'ohp', 'overhead press', 'lateral raise', 'delt', 'military', 'arnold', 'front raise', 'upright row', 'landmine press', 'push press', 'push jerk', 'jerk', 'snatch', 'muscle-up', 'muscle up'] },
+  back:       { label: 'Back',        keywords: ['row', 'pull up', 'pullup', 'pull-up', 'lat', 'deadlift', 'pulldown', 'pull down', 'back', 'chin up', 'chinup', 'chin-up', 'shrug', 'trap', 'face pull', 'rack pull', 'pull-through', 'clean', 'snatch', 'muscle-up', 'muscle up', 'toes-to-bar', 'farmer', 'slam'] },
+  biceps:     { label: 'Biceps',      keywords: ['curl', 'bicep', 'hammer', 'preacher'], exclude: ['wrist'] },
+  triceps:    { label: 'Triceps',     keywords: ['tricep', 'skull', 'pushdown', 'tricep extension', 'kickback', 'close grip', 'close-grip', 'diamond push', 'bench dip'] },
+  core:       { label: 'Core',        keywords: ['abs', 'core', 'plank', 'crunch', 'sit up', 'sit-up', 'leg raise', 'russian twist', 'ab ', 'v-up', 'dragon flag', 'hollow body', 'woodchop', 'mountain climber', 'toes-to-bar', 'pallof', 'turkish', 'hanging', 'slam'] },
+  quads:      { label: 'Quads',       keywords: ['squat', 'leg press', 'lunge', 'quad', 'leg extension', 'hack squat', 'split squat', 'step up', 'step-up', 'box jump', 'burpee', 'thruster', 'clean', 'jerk'] },
+  hamstrings: { label: 'Hamstrings',  keywords: ['hamstring', 'romanian', 'rdl', 'leg curl', 'nordic', 'good morning', 'stiff leg', 'stiff-leg', 'glute ham', 'hyperextension', 'back extension', 'pull-through', 'kettlebell swing'] },
+  glutes:     { label: 'Glutes',      keywords: ['glute', 'hip thrust', 'rdl', 'bulgarian', 'bridge', 'hip abduction', 'abduction', 'adduction', 'pull-through', 'hyperextension', 'kettlebell swing', 'step-up', 'step up'] },
   calves:     { label: 'Calves',      keywords: ['calf', 'calves', 'calf raise', 'standing raise', 'seated raise'] },
+  forearms:   { label: 'Forearms',    keywords: ['wrist', 'forearm', 'grip', 'farmer', 'battle rope', 'sled'] },
 };
 
 // Fatigue half-life: ~48 hours. Score = sets * e^(-hoursElapsed / 48)
 // A score of 0 = fully recovered, 1+ = fatigued (normalised to 0–1 for display)
 const HALF_LIFE_HOURS = 48;
 
-function classify(exerciseName) {
-  const name = exerciseName.toLowerCase();
+export function classify(exerciseName) {
+  const name = (exerciseName || '').toLowerCase();
   const matches = [];
-  for (const [group, { keywords }] of Object.entries(MUSCLE_GROUPS)) {
+  for (const [group, { keywords, exclude }] of Object.entries(MUSCLE_GROUPS)) {
+    if (exclude?.some(kw => name.includes(kw))) continue;
     if (keywords.some(kw => name.includes(kw))) matches.push(group);
   }
   return matches;
 }
+
+export { MUSCLE_GROUPS };
 
 function computeFatigue(activity) {
   // activity: [{ exercise_name, completed_at, sets }]
